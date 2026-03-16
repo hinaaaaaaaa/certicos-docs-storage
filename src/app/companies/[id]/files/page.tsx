@@ -16,8 +16,6 @@ import {
   AppPagination,
   AppTable,
 } from '@/design-system';
-import UploadModal from '@/components/UploadModal';
-
 // Types
 interface FileData {
   id: string;
@@ -26,6 +24,14 @@ interface FileData {
   date: string;
   uploader: string;
   type: string;
+}
+
+interface UploadingFile {
+  id: string;
+  name: string;
+  size: string;
+  progress: number;
+  status: 'uploading' | 'completed' | 'error';
 }
 
 interface FolderNode {
@@ -347,6 +353,98 @@ const ActiveFilterBadge = styled.span`
   font-size: 12px;
 `;
 
+const UploadZone = styled.div<{ $isDragging?: boolean }>`
+  border: 2px dashed ${({ $isDragging }) => ($isDragging ? COLOR.PRIMARY60 : COLOR.GRAY30)};
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 16px;
+  background: ${({ $isDragging }) => ($isDragging ? COLOR.PRIMARY10 : COLOR.WHITE)};
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY60};
+    background: ${COLOR.PRIMARY10};
+  }
+`;
+
+const UploadZoneContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+`;
+
+const UploadingRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: ${COLOR.BLUEGRAY10};
+  border-radius: 8px;
+  margin-bottom: 8px;
+`;
+
+const UploadingFileInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const UploadingFileName = styled.div`
+  font-size: 14px;
+  color: ${COLOR.GRAY90};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const UploadingFileMeta = styled.div`
+  font-size: 12px;
+  color: ${COLOR.GRAY60};
+  margin-top: 2px;
+`;
+
+const ProgressBarWrapper = styled.div`
+  flex: 0 0 200px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ProgressBar = styled.div`
+  flex: 1;
+  height: 6px;
+  background: ${COLOR.GRAY30};
+  border-radius: 3px;
+  overflow: hidden;
+`;
+
+const ProgressFill = styled.div<{ $progress: number; $status: string }>`
+  height: 100%;
+  width: ${({ $progress }) => $progress}%;
+  background: ${({ $status }) =>
+    $status === 'error' ? COLOR.RED60 :
+    $status === 'completed' ? COLOR.GREEN50 :
+    COLOR.PRIMARY60};
+  border-radius: 3px;
+  transition: width 0.3s ease;
+`;
+
+const ProgressText = styled.span<{ $status: string }>`
+  font-size: 12px;
+  min-width: 45px;
+  text-align: right;
+  color: ${({ $status }) =>
+    $status === 'error' ? COLOR.RED60 :
+    $status === 'completed' ? COLOR.GREEN50 :
+    COLOR.GRAY70};
+`;
+
+const UploadingList = styled.div`
+  margin-bottom: 16px;
+`;
+
 const AVAILABLE_TAGS = ['PIF', 'QCQA', '견적서', '인허가', '성분분석', '안전성'];
 const FILE_TYPES = [
   { value: 'all', label: '전체 파일' },
@@ -374,12 +472,14 @@ export default function FileListPage() {
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['1', '1-1']);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchValue, setSearchValue] = useState('');
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([]);
   const [uploaderFilter, setUploaderFilter] = useState<string>('all');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const toggleFolder = (id: string) => {
     setExpandedFolders((prev) =>
@@ -404,6 +504,76 @@ export default function FileListPage() {
     setUploaderFilter('all');
     setSelectedTags([]);
     setSearchValue('');
+  };
+
+  // 파일 업로드 처리
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const simulateUpload = (file: File) => {
+    const uploadId = `upload-${Date.now()}-${Math.random()}`;
+    const newUpload: UploadingFile = {
+      id: uploadId,
+      name: file.name,
+      size: formatFileSize(file.size),
+      progress: 0,
+      status: 'uploading',
+    };
+
+    setUploadingFiles((prev) => [...prev, newUpload]);
+
+    // 업로드 시뮬레이션
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15 + 5;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadId ? { ...f, progress: 100, status: 'completed' } : f
+          )
+        );
+        // 3초 후 완료된 파일 제거
+        setTimeout(() => {
+          setUploadingFiles((prev) => prev.filter((f) => f.id !== uploadId));
+        }, 3000);
+      } else {
+        setUploadingFiles((prev) =>
+          prev.map((f) =>
+            f.id === uploadId ? { ...f, progress: Math.min(progress, 99) } : f
+          )
+        );
+      }
+    }, 300);
+  };
+
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => simulateUpload(file));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileSelect(e.dataTransfer.files);
+  };
+
+  const handleCancelUpload = (uploadId: string) => {
+    setUploadingFiles((prev) => prev.filter((f) => f.id !== uploadId));
   };
 
   // 검색어 하이라이팅 함수
@@ -591,7 +761,7 @@ export default function FileListPage() {
             variant="PRIMARY"
             size="MEDIUM"
             prefixIcon={<AppIcon name="upload" size={16} fillColor="TEXT_WHITE" />}
-            onClick={() => setIsUploadOpen(true)}
+            onClick={() => fileInputRef.current?.click()}
           >
             업로드
           </AppTextButton>
@@ -677,6 +847,66 @@ export default function FileListPage() {
             </AppTypography>
           </ContentHeader>
 
+          {/* 업로드 영역 */}
+          <UploadZone
+            $isDragging={isDragging}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <UploadZoneContent>
+              <AppIcon name="upload" size={32} fillColor={isDragging ? 'ICON_PRIMARY' : 'ICON_ASSISTIVE'} />
+              <AppTypography variant="BODY2_500" color={isDragging ? 'TEXT_PRIMARY' : 'TEXT_NORMAL'}>
+                파일을 드래그하거나 클릭하여 업로드
+              </AppTypography>
+              <AppTypography variant="SMALL_400" color="TEXT_ASSISTIVE">
+                PDF, Excel, Word, 이미지 파일 지원 (최대 100MB)
+              </AppTypography>
+            </UploadZoneContent>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileSelect(e.target.files)}
+            />
+          </UploadZone>
+
+          {/* 업로드 중인 파일 목록 */}
+          {uploadingFiles.length > 0 && (
+            <UploadingList>
+              {uploadingFiles.map((file) => (
+                <UploadingRow key={file.id}>
+                  <FileIcon>
+                    {file.name.split('.').pop()?.toUpperCase() || 'FILE'}
+                  </FileIcon>
+                  <UploadingFileInfo>
+                    <UploadingFileName>{file.name}</UploadingFileName>
+                    <UploadingFileMeta>
+                      {file.size} • {file.status === 'completed' ? '완료' : file.status === 'error' ? '오류' : '업로드 중...'}
+                    </UploadingFileMeta>
+                  </UploadingFileInfo>
+                  <ProgressBarWrapper>
+                    <ProgressBar>
+                      <ProgressFill $progress={file.progress} $status={file.status} />
+                    </ProgressBar>
+                    <ProgressText $status={file.status}>
+                      {file.status === 'completed' ? '완료' : file.status === 'error' ? '실패' : `${Math.round(file.progress)}%`}
+                    </ProgressText>
+                  </ProgressBarWrapper>
+                  {file.status === 'uploading' && (
+                    <AppIconButton
+                      icon="close"
+                      size="SMALL"
+                      onClick={() => handleCancelUpload(file.id)}
+                    />
+                  )}
+                </UploadingRow>
+              ))}
+            </UploadingList>
+          )}
+
           <AppTable<FileData> columns={tableColumns} data={filteredFiles} rowKey="id" />
 
           <PaginationWrapper>
@@ -689,9 +919,6 @@ export default function FileListPage() {
           </PaginationWrapper>
         </ContentArea>
       </MainContent>
-
-      <UploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
-
-          </PageContainer>
+    </PageContainer>
   );
 }
