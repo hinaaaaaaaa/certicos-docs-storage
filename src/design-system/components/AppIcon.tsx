@@ -26,7 +26,15 @@ type IconName =
   | 'close'
   | 'upload'
   | 'settings'
-  | 'filter';
+  | 'filter'
+  | 'share'
+  | 'trash'
+  | 'restore'
+  | 'extract'
+  | 'check'
+  | 'bell'
+  | 'warning'
+  | 'eye';
 
 const icons: Record<IconName, (color: string) => React.ReactNode> = {
   chevronDown: (color) => (
@@ -156,6 +164,89 @@ const icons: Record<IconName, (color: string) => React.ReactNode> = {
       strokeLinejoin="round"
       fill="none"
     />
+  ),
+  share: (color) => (
+    <>
+      <circle cx="18" cy="5" r="3" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="6" cy="12" r="3" stroke={color} strokeWidth="2" fill="none" />
+      <circle cx="18" cy="19" r="3" stroke={color} strokeWidth="2" fill="none" />
+      <path d="M8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49" stroke={color} strokeWidth="2" />
+    </>
+  ),
+  trash: (color) => (
+    <>
+      <path d="M3 6H5H21" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  restore: (color) => (
+    <>
+      <path d="M3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C9.69494 21 7.59227 20.1334 6 18.7083" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <path d="M3 5V12H10" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  extract: (color) => (
+    <>
+      <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M14 2V8H20" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 15L12 12L15 15" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 12V18" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  check: (color) => (
+    <path
+      d="M20 6L9 17L4 12"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  bell: (color) => (
+    <>
+      <path
+        d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M13.73 21a2 2 0 0 1-3.46 0"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </>
+  ),
+  warning: (color) => (
+    <>
+      <path
+        d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path d="M12 9v4" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="1" fill={color} />
+    </>
+  ),
+  eye: (color) => (
+    <>
+      <path
+        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" fill="none" />
+    </>
   ),
 };
 
