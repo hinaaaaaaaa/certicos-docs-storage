@@ -1974,8 +1974,8 @@ const BulkActionBar = styled.div`
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: ${COLOR.YELLOW10};
-  border-bottom: 1px solid ${COLOR.YELLOW30};
+  background: ${COLOR.YELLOW20};
+  border-bottom: 1px solid ${COLOR.YELLOW50};
 `;
 
 const SelectionCount = styled.span`
@@ -2895,9 +2895,11 @@ export default function FileListPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '회사별 제품 관리', onClick: () => {} }, { label: '회사 제품 상세' }]} />
               </div>
-              <AppTypography variant="TITLE2_600" color="TEXT_STRONG" style={{ marginBottom: 24 }}>
-                {companyName} | 111-05-00000
-              </AppTypography>
+              <div style={{ marginBottom: 24 }}>
+                <AppTypography variant="TITLE2_600" color="TEXT_STRONG">
+                  {companyName} | 111-05-00000
+                </AppTypography>
+              </div>
               
               <TabGroup>
                 <TabButton $active={activeTab === '진행 전'} onClick={() => setActiveTab('진행 전')}>진행 전</TabButton>
@@ -3370,9 +3372,11 @@ export default function FileListPage() {
             <ShareModalHeader>
               <ShareModalTitle>
                 <AppTypography variant="BODY1_500" color="TEXT_STRONG">공유</AppTypography>
-                <AppTypography variant="SMALL_400" color="TEXT_ASSISTIVE" style={{ marginTop: 4 }}>
-                  {shareTargetName}
-                </AppTypography>
+                <div style={{ marginTop: 4 }}>
+                  <AppTypography variant="SMALL_400" color="TEXT_ASSISTIVE">
+                    {shareTargetName}
+                  </AppTypography>
+                </div>
               </ShareModalTitle>
               <ShareModalClose onClick={closeShareModal}>
                 <AppIcon name="close" size={20} fillColor="ICON_NEUTRAL" />
@@ -3519,9 +3523,11 @@ export default function FileListPage() {
             <PermissionMainHeader>
               <PermissionMainTitle>
                 <AppTypography variant="BODY1_500" color="TEXT_STRONG">{selectedPermissionFolder}</AppTypography>
-                <AppTypography variant="SMALL_400" color="TEXT_ASSISTIVE" style={{ marginTop: 4 }}>
-                  폴더 유형별로 팀의 접근 권한을 설정합니다
-                </AppTypography>
+                <div style={{ marginTop: 4 }}>
+                  <AppTypography variant="SMALL_400" color="TEXT_ASSISTIVE">
+                    폴더 유형별로 팀의 접근 권한을 설정합니다
+                  </AppTypography>
+                </div>
               </PermissionMainTitle>
             </PermissionMainHeader>
 

@@ -1721,13 +1721,13 @@ export default function DocsPage() {
               <FileMain>
                 <ActionBar $visible={selectedFiles.length > 0}>
                   <AppTypography variant="BODY2_500" color="TEXT_PRIMARY">{selectedFiles.length}개 선택됨</AppTypography>
-                  <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="extract" size={14} />}>Certicos 추출</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="download" size={14} />}>다운로드</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="share" size={14} />} onClick={() => setIsShareModalOpen(true)}>공유</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="folder" size={14} />} onClick={() => setIsMoveModalOpen(true)}>이동</AppTextButton>
-                  <AppTextButton variant="DANGER" size="SMALL" leftIcon={<AppIcon name="trash" size={14} />}>삭제</AppTextButton>
+                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="extract" size={14} />}>Certicos 추출</AppTextButton>
+                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="download" size={14} />}>다운로드</AppTextButton>
+                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="share" size={14} />} onClick={() => setIsShareModalOpen(true)}>공유</AppTextButton>
+                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="folder" size={14} />} onClick={() => setIsMoveModalOpen(true)}>이동</AppTextButton>
+                  <AppTextButton variant="DANGER" size="SMALL" prefixIcon={<AppIcon name="trash" size={14} />}>삭제</AppTextButton>
                   <div style={{ marginLeft: 'auto' }}>
-                    <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="close" size={14} />} onClick={() => setSelectedFiles([])}>해제</AppTextButton>
+                    <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="close" size={14} />} onClick={() => setSelectedFiles([])}>해제</AppTextButton>
                   </div>
                 </ActionBar>
                 <FileToolbar style={{ display: selectedFiles.length > 0 ? 'none' : 'flex' }}>
@@ -1737,7 +1737,7 @@ export default function DocsPage() {
                     { label: '제품B' },
                   ]} />
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                    <AppTextButton variant="SECONDARY" size="SMALL" leftIcon={<AppIcon name="folder" size={14} />}>폴더 만들기</AppTextButton>
+                    <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="folder" size={14} />}>폴더 만들기</AppTextButton>
                   </div>
                 </FileToolbar>
                 <SearchBar>
@@ -1750,7 +1750,7 @@ export default function DocsPage() {
                   <AppTextButton
                     variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
                     size="SMALL"
-                    leftIcon={<AppIcon name="filter" size={14} />}
+                    prefixIcon={<AppIcon name="filter" size={14} />}
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
                   >
                     상세 필터 {isFilterOpen ? '닫기' : '열기'}
@@ -1893,7 +1893,7 @@ export default function DocsPage() {
                               <div style={{ fontSize: 13, color: COLOR.RED60, fontWeight: 500 }}>파일 형식이 지원되지 않거나 내용을 읽을 수 없습니다.</div>
                               <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 2 }}>오류 코드: EXT-401</div>
                             </div>
-                            <AppTextButton variant="SECONDARY" size="SMALL" style={{ marginLeft: 'auto' }} leftIcon={<AppIcon name="restore" size={14} />}>다시 추출</AppTextButton>
+                            <AppTextButton variant="SECONDARY" size="SMALL" style={{ marginLeft: 'auto' }} prefixIcon={<AppIcon name="restore" size={14} />}>다시 추출</AppTextButton>
                           </div>
                         </ExtractPanel>
                       )}
@@ -1955,7 +1955,7 @@ export default function DocsPage() {
                 </div>
                 <PermissionCard>
                   <PermissionCardHeader>
-                    <AppTypography variant="BODY1_500" color="TEXT_STRONG"><AppIcon name="file" size={16} fillColor="ICON_PRIMARY" style={{ marginRight: 6 }} /> {selectedFolder}</AppTypography>
+                    <AppTypography variant="BODY1_500" color="TEXT_STRONG"><span style={{ marginRight: 6, display: 'inline-flex' }}><AppIcon name="file" size={16} fillColor="ICON_PRIMARY" /></span> {selectedFolder}</AppTypography>
                     <span style={{ fontSize: 12, color: COLOR.GRAY70 }}>업로드 담당: 컨설팅팀</span>
                   </PermissionCardHeader>
                   <PermissionTable>
@@ -2109,16 +2109,16 @@ export default function DocsPage() {
               </PreviewFileName>
               <PreviewHeaderActions>
                 <PreviewHeaderBtn>
-                  <AppIcon name="download" size={16} fillColor="ICON_INVERSE" />
+                  <AppIcon name="download" size={16} fillColor="TEXT_WHITE" />
                   다운로드
                 </PreviewHeaderBtn>
                 <PreviewHeaderBtn onClick={() => { setIsPreviewOpen(false); setSelectedFiles([previewFile.id]); setIsShareModalOpen(true); }}>
-                  <AppIcon name="share" size={16} fillColor="ICON_INVERSE" />
+                  <AppIcon name="share" size={16} fillColor="TEXT_WHITE" />
                   공유
                 </PreviewHeaderBtn>
                 <PreviewPageInfo>1 / 3 페이지</PreviewPageInfo>
                 <PreviewHeaderBtn onClick={() => { setIsPreviewOpen(false); setPreviewFile(null); }} style={{ marginLeft: 8 }}>
-                  <AppIcon name="close" size={16} fillColor="ICON_INVERSE" />
+                  <AppIcon name="close" size={16} fillColor="TEXT_WHITE" />
                 </PreviewHeaderBtn>
               </PreviewHeaderActions>
             </PreviewHeader>
@@ -2306,7 +2306,7 @@ export default function DocsPage() {
                 />
                 {folder.name}
                 {moveFolderTarget === folder.id && (
-                  <AppIcon name="check" size={14} fillColor="ICON_PRIMARY" style={{ marginLeft: 'auto' }} />
+                  <span style={{ marginLeft: 'auto' }}><AppIcon name="check" size={14} fillColor="ICON_PRIMARY" /></span>
                 )}
               </FolderTreeItem>
             ))}
