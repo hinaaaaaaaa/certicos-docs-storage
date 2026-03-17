@@ -959,6 +959,183 @@ const ModalFooter = styled.div`
   margin-top: 20px;
 `;
 
+// ---- 업로드 모달 ----
+const UploadDropArea = styled.div<{ $isDragging?: boolean }>`
+  border: 2px dashed ${({ $isDragging }) => $isDragging ? COLOR.PRIMARY60 : COLOR.GRAY30};
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  background: ${({ $isDragging }) => $isDragging ? COLOR.PRIMARY10 : COLOR.WHITE};
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY60};
+    background: ${COLOR.PRIMARY10};
+  }
+`;
+
+const UploadIconWrapper = styled.div`
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  background: ${COLOR.PRIMARY10};
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const UploadTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${COLOR.GRAY90};
+  margin-bottom: 8px;
+`;
+
+const UploadSubtitle = styled.div`
+  font-size: 13px;
+  color: ${COLOR.GRAY60};
+  margin-bottom: 16px;
+`;
+
+const UploadButton = styled.button`
+  padding: 10px 24px;
+  background: ${COLOR.PRIMARY60};
+  color: ${COLOR.WHITE};
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #2a6fd6;
+  }
+`;
+
+const UploadFileList = styled.div`
+  margin-top: 20px;
+  max-height: 240px;
+  overflow-y: auto;
+`;
+
+const UploadFileItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: ${COLOR.GRAY10};
+  border-radius: 8px;
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const UploadFileIcon = styled.div<{ $type?: string }>`
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  ${({ $type }) => {
+    switch ($type) {
+      case 'pdf':
+        return `background: #fce8e6;`;
+      case 'xlsx':
+        return `background: #e6f4ea;`;
+      case 'jpg':
+      case 'png':
+        return `background: #e8f0fe;`;
+      default:
+        return `background: ${COLOR.GRAY20};`;
+    }
+  }}
+`;
+
+const UploadFileInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const UploadFileNameText = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.GRAY90};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const UploadFileMeta = styled.div`
+  font-size: 11px;
+  color: ${COLOR.GRAY60};
+  margin-top: 2px;
+`;
+
+const UploadProgressWrapper = styled.div`
+  flex: 1;
+  max-width: 120px;
+`;
+
+const UploadProgressBarBg = styled.div`
+  height: 6px;
+  background: ${COLOR.GRAY20};
+  border-radius: 3px;
+  overflow: hidden;
+`;
+
+const UploadProgressBarFill = styled.div<{ $progress: number; $status?: string }>`
+  height: 100%;
+  width: ${({ $progress }) => $progress}%;
+  background: ${({ $status }) => $status === 'error' ? COLOR.RED60 : $status === 'done' ? '#188038' : COLOR.PRIMARY60};
+  border-radius: 3px;
+  transition: width 0.3s ease;
+`;
+
+const UploadProgressText = styled.div<{ $status?: string }>`
+  font-size: 11px;
+  color: ${({ $status }) => $status === 'error' ? COLOR.RED60 : $status === 'done' ? '#188038' : COLOR.GRAY60};
+  margin-top: 4px;
+  text-align: right;
+`;
+
+const UploadFolderSelect = styled.div`
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid ${COLOR.GRAY20};
+`;
+
+const UploadFolderLabel = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.GRAY80};
+  margin-bottom: 8px;
+`;
+
+const UploadFolderPath = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: ${COLOR.GRAY10};
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 6px;
+  font-size: 13px;
+  color: ${COLOR.GRAY80};
+  cursor: pointer;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY60};
+  }
+`;
+
 // ---- 미리보기 모달 ----
 const PreviewOverlay = styled.div<{ $isOpen: boolean }>`
   position: fixed;
@@ -1350,9 +1527,19 @@ export default function DocsPage() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileData | null>(null);
   const [shareEmail, setShareEmail] = useState('');
   const [moveFolderTarget, setMoveFolderTarget] = useState<string | null>(null);
+  const [uploadFolderTarget, setUploadFolderTarget] = useState('제품B');
+  const [modalUploadFiles, setModalUploadFiles] = useState<Array<{
+    id: string;
+    name: string;
+    size: string;
+    type: string;
+    progress: number;
+    status: 'uploading' | 'done' | 'error';
+  }>>([]);
 
   // 공유된 멤버 목록 (mock)
   const [sharedMembers, setSharedMembers] = useState([
@@ -1476,6 +1663,44 @@ export default function DocsPage() {
     setFileSizeFilter('all');
     setDateFrom('');
     setDateTo('');
+  };
+
+  // 모달 파일 선택 핸들러
+  const handleModalFileSelect = (files: File[]) => {
+    const newFiles = files.map((file, idx) => {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      return {
+        id: `upload-${Date.now()}-${idx}`,
+        name: file.name,
+        size: file.size < 1024 * 1024
+          ? `${(file.size / 1024).toFixed(1)} KB`
+          : `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+        type: ext,
+        progress: 0,
+        status: 'uploading' as const,
+      };
+    });
+
+    setModalUploadFiles(prev => [...prev, ...newFiles]);
+
+    // 업로드 진행 시뮬레이션
+    newFiles.forEach((newFile) => {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.random() * 15 + 5;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          setModalUploadFiles(prev =>
+            prev.map(f => f.id === newFile.id ? { ...f, progress: 100, status: 'done' as const } : f)
+          );
+        } else {
+          setModalUploadFiles(prev =>
+            prev.map(f => f.id === newFile.id ? { ...f, progress: Math.min(progress, 99) } : f)
+          );
+        }
+      }, 200);
+    });
   };
 
   const handleCompanyClick = (company: Company) => {
@@ -1636,7 +1861,7 @@ export default function DocsPage() {
                     </NotificationPanel>
                   </NotificationWrapper>
                   <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setCurrentView('trash')}>휴지통</AppTextButton>
-                  <AppTextButton variant="PRIMARY" size="MEDIUM">업로드</AppTextButton>
+                  <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
                 </div>
               </PageTitleRow>
             </PageHeader>
@@ -1696,7 +1921,7 @@ export default function DocsPage() {
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setCurrentView('permissions')}>권한 관리</AppTextButton>
-                  <AppTextButton variant="PRIMARY" size="MEDIUM">업로드</AppTextButton>
+                  <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
                 </div>
               </PageTitleRow>
             </PageHeader>
@@ -2325,6 +2550,105 @@ export default function DocsPage() {
             disabled={!moveFolderTarget}
           >
             이동하기
+          </AppTextButton>
+        </ModalFooter>
+      </AppModal>
+
+      {/* 업로드 모달 */}
+      <AppModal
+        isOpen={isUploadModalOpen}
+        onClose={() => { setIsUploadModalOpen(false); setModalUploadFiles([]); }}
+        title="파일 업로드"
+        width={520}
+      >
+        <UploadDropArea
+          $isDragging={isDragging}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            const files = Array.from(e.dataTransfer.files);
+            handleModalFileSelect(files);
+          }}
+          onClick={() => document.getElementById('modal-file-input')?.click()}
+        >
+          <input
+            id="modal-file-input"
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              if (e.target.files) {
+                handleModalFileSelect(Array.from(e.target.files));
+              }
+            }}
+          />
+          <UploadIconWrapper>
+            <AppIcon name="upload" size={28} fillColor="ICON_PRIMARY" />
+          </UploadIconWrapper>
+          <UploadTitle>파일을 드래그하거나 클릭하여 선택</UploadTitle>
+          <UploadSubtitle>PDF, Excel, 이미지 파일을 업로드할 수 있습니다 (최대 50MB)</UploadSubtitle>
+          <UploadButton type="button" onClick={(e) => { e.stopPropagation(); document.getElementById('modal-file-input')?.click(); }}>
+            파일 선택
+          </UploadButton>
+        </UploadDropArea>
+
+        {modalUploadFiles.length > 0 && (
+          <UploadFileList>
+            {modalUploadFiles.map((file) => (
+              <UploadFileItem key={file.id}>
+                <UploadFileIcon $type={file.type}>
+                  <AppIcon
+                    name="file"
+                    size={20}
+                    fillColor={file.type === 'pdf' ? 'STATE_ERROR' : file.type === 'xlsx' ? 'STATE_SUCCESS' : 'ICON_PRIMARY'}
+                  />
+                </UploadFileIcon>
+                <UploadFileInfo>
+                  <UploadFileNameText>{file.name}</UploadFileNameText>
+                  <UploadFileMeta>{file.size}</UploadFileMeta>
+                </UploadFileInfo>
+                <UploadProgressWrapper>
+                  <UploadProgressBarBg>
+                    <UploadProgressBarFill $progress={file.progress} $status={file.status} />
+                  </UploadProgressBarBg>
+                  <UploadProgressText $status={file.status}>
+                    {file.status === 'done' ? '완료' : file.status === 'error' ? '실패' : `${file.progress}%`}
+                  </UploadProgressText>
+                </UploadProgressWrapper>
+                <AppIconButton
+                  icon="close"
+                  size="SMALL"
+                  onClick={() => setModalUploadFiles(prev => prev.filter(f => f.id !== file.id))}
+                />
+              </UploadFileItem>
+            ))}
+          </UploadFileList>
+        )}
+
+        <UploadFolderSelect>
+          <UploadFolderLabel>업로드 위치</UploadFolderLabel>
+          <UploadFolderPath>
+            <AppIcon name="folder" size={16} fillColor="ICON_PRIMARY" />
+            {selectedCompany?.nameKo || '회사'} › 25년 1차 › {uploadFolderTarget}
+            <span style={{ marginLeft: 'auto', color: COLOR.GRAY60, fontSize: 12 }}>변경</span>
+          </UploadFolderPath>
+        </UploadFolderSelect>
+
+        <ModalFooter>
+          <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => { setIsUploadModalOpen(false); setModalUploadFiles([]); }}>취소</AppTextButton>
+          <AppTextButton
+            variant="PRIMARY"
+            size="MEDIUM"
+            onClick={() => {
+              // 업로드 완료 처리
+              setIsUploadModalOpen(false);
+              setModalUploadFiles([]);
+            }}
+            disabled={modalUploadFiles.length === 0 || modalUploadFiles.some(f => f.status === 'uploading')}
+          >
+            {modalUploadFiles.some(f => f.status === 'uploading') ? '업로드 중...' : '업로드'}
           </AppTextButton>
         </ModalFooter>
       </AppModal>
