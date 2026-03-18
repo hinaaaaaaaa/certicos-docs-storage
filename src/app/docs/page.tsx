@@ -89,9 +89,9 @@ interface AllergenData {
   allergenList: Record<string, string>;
 }
 
-const MOCK_FILES: FileData[] = [
-  { id: 'f1', name: '견적서/의뢰서', size: '—', date: '2026.03.10', uploader: '', type: 'folder' },
-  { id: 'f2', name: 'PIF', size: '—', date: '2026.03.08', uploader: '', type: 'folder' },
+const MOCK_FILES: (FileData & { isEmpty?: boolean })[] = [
+  { id: 'f1', name: '견적서/의뢰서', size: '—', date: '2026.03.10', uploader: '', type: 'folder', isEmpty: false },
+  { id: 'f2', name: 'PIF', size: '—', date: '2026.03.08', uploader: '', type: 'folder', isEmpty: true },
   { id: '1', name: '제품B_견적서_v2.pdf', size: '2.4 MB', date: '2026.03.14', uploader: '김민준', type: 'pdf', extractStatus: 'completed', extractData: { productName: '제품B (ProductB-2000)', customer: '삼성메디칼', amount: '₩ 12,500,000', date: '2026-03-14', consultant: '김민준' } },
   { id: '2', name: '의뢰서_삼성메디칼.xlsx', size: '512 KB', date: '2026.03.11', uploader: '이매니저', type: 'xlsx', extractStatus: 'failed' },
   { id: '3', name: '제품사진_001.jpg', size: '8.1 MB', date: '2026.03.09', uploader: '박컨설턴트', type: 'jpg', extractStatus: 'none' },
@@ -644,6 +644,175 @@ const TrashNotice = styled.div`
   padding: 12px 16px;
   font-size: 13px;
   color: #b06000;
+`;
+
+// ---- 통합 검색 ----
+const GlobalSearchSection = styled.div`
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY20};
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+`;
+
+const GlobalSearchRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const GlobalSearchInput = styled.input`
+  flex: 1;
+  height: 44px;
+  padding: 0 16px 0 44px;
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 8px;
+  font-size: 14px;
+  background: ${COLOR.WHITE};
+  outline: none;
+  transition: all 0.2s ease;
+
+  &:focus {
+    border-color: ${COLOR.PRIMARY60};
+    box-shadow: 0 0 0 3px ${COLOR.PRIMARY10};
+  }
+
+  &::placeholder {
+    color: ${COLOR.GRAY50};
+  }
+`;
+
+const GlobalSearchInputWrapper = styled.div`
+  position: relative;
+  flex: 1;
+`;
+
+const GlobalSearchIcon = styled.div`
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+`;
+
+const SearchResultDropdown = styled.div<{ $isOpen: boolean }>`
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  display: ${({ $isOpen }) => $isOpen ? 'block' : 'none'};
+`;
+
+const SearchResultGroup = styled.div`
+  padding: 8px 0;
+  border-bottom: 1px solid ${COLOR.GRAY20};
+
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const SearchResultGroupTitle = styled.div`
+  padding: 6px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: ${COLOR.GRAY60};
+  text-transform: uppercase;
+`;
+
+const SearchResultItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: ${COLOR.BLUEGRAY10};
+  }
+`;
+
+const SearchResultIcon = styled.div<{ $type: 'company' | 'folder' | 'file' }>`
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  ${({ $type }) => {
+    switch ($type) {
+      case 'company':
+        return `background: ${COLOR.PRIMARY10};`;
+      case 'folder':
+        return `background: #fff3e0;`;
+      case 'file':
+        return `background: ${COLOR.BLUEGRAY10};`;
+    }
+  }}
+`;
+
+const SearchResultInfo = styled.div`
+  flex: 1;
+  min-width: 0;
+`;
+
+const SearchResultName = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.GRAY90};
+`;
+
+const SearchResultMeta = styled.div`
+  font-size: 11px;
+  color: ${COLOR.GRAY60};
+  margin-top: 2px;
+`;
+
+const SearchHighlight = styled.mark`
+  background: ${COLOR.YELLOW20};
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+`;
+
+const FilterChipsRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+`;
+
+const FilterChipGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const FilterChipLabel = styled.span`
+  font-size: 12px;
+  color: ${COLOR.GRAY60};
+`;
+
+const EmptyFolderBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: ${COLOR.GRAY30};
+  margin-left: 6px;
 `;
 
 // ---- 필터 패널 ----
@@ -1685,6 +1854,40 @@ export default function DocsPage() {
     setSearchTags([]);
   };
 
+  // 통합 검색 상태
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // 검색어 하이라이트 함수
+  const highlightText = (text: string, search: string) => {
+    if (!search.trim()) return text;
+    const regex = new RegExp(`(${search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) =>
+      regex.test(part) ? <SearchHighlight key={i}>{part}</SearchHighlight> : part
+    );
+  };
+
+  // 통합 검색 결과
+  const globalSearchResults = globalSearch.trim() ? {
+    companies: MOCK_COMPANIES.filter(c =>
+      c.nameKo.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      c.nameEn.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      c.consultant.includes(globalSearch)
+    ).slice(0, 3),
+    folders: folderStructure.filter(f =>
+      f.name.toLowerCase().includes(globalSearch.toLowerCase())
+    ).slice(0, 3),
+    files: MOCK_FILES.filter(f =>
+      f.name.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      f.uploader.includes(globalSearch)
+    ).slice(0, 5),
+  } : { companies: [], folders: [], files: [] };
+
+  const hasSearchResults = globalSearchResults.companies.length > 0 ||
+    globalSearchResults.folders.length > 0 ||
+    globalSearchResults.files.length > 0;
+
   // 드래그앤드롭 상태
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Array<{ name: string; size: string; progress: number }>>([]);
@@ -2014,9 +2217,9 @@ export default function DocsPage() {
         return (
           <PageWrapper onClick={() => setIsNotificationOpen(false)}>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '서류 저장소' }]} />
+              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템' }]} />
               <PageTitleRow style={{ marginTop: 8 }}>
-                <PageTitle>서류 저장소</PageTitle>
+                <PageTitle>파일 관리 시스템</PageTitle>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <NotificationWrapper onClick={(e) => e.stopPropagation()}>
                     <NotificationBell onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
@@ -2050,34 +2253,129 @@ export default function DocsPage() {
               </PageTitleRow>
             </PageHeader>
 
-            <FilterBar>
-              <FilterLeft>
-                <AppSearchInput
-                  placeholder="파일명 검색"
-                  width={320}
-                  value={fileNameSearch}
-                  onChange={setFileNameSearch}
-                />
-              </FilterLeft>
-              <FilterRight>
-                <AppSelect
-                  placeholder="컨설턴트"
-                  width={140}
-                  value={consultantFilter}
-                  onChange={(v) => setConsultantFilter(String(v))}
-                  options={CONSULTANTS}
-                />
-                {(fileNameSearch || consultantFilter !== 'all') && (
-                  <AppTextButton
-                    variant="SECONDARY"
-                    size="SMALL"
-                    onClick={() => { setFileNameSearch(''); setConsultantFilter('all'); }}
-                  >
-                    초기화
-                  </AppTextButton>
-                )}
-              </FilterRight>
-            </FilterBar>
+            <GlobalSearchSection>
+              <GlobalSearchRow>
+                <GlobalSearchInputWrapper>
+                  <GlobalSearchIcon>
+                    <AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" />
+                  </GlobalSearchIcon>
+                  <GlobalSearchInput
+                    placeholder="회사, 폴더, 파일명으로 통합 검색..."
+                    value={globalSearch}
+                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                  />
+                  <SearchResultDropdown $isOpen={isSearchFocused && hasSearchResults}>
+                    {globalSearchResults.companies.length > 0 && (
+                      <SearchResultGroup>
+                        <SearchResultGroupTitle>회사</SearchResultGroupTitle>
+                        {globalSearchResults.companies.map(company => (
+                          <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); }}>
+                            <SearchResultIcon $type="company">
+                              <AppIcon name="folder" size={16} fillColor="ICON_PRIMARY" />
+                            </SearchResultIcon>
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
+                              <SearchResultMeta>{company.consultant} · {company.productCount}개 제품</SearchResultMeta>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultGroup>
+                    )}
+                    {globalSearchResults.folders.length > 0 && (
+                      <SearchResultGroup>
+                        <SearchResultGroupTitle>폴더</SearchResultGroupTitle>
+                        {globalSearchResults.folders.map(folder => (
+                          <SearchResultItem key={folder.id}>
+                            <SearchResultIcon $type="folder">
+                              <AppIcon name="folder" size={16} fillColor="ICON_NEUTRAL" />
+                            </SearchResultIcon>
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(folder.name, globalSearch)}</SearchResultName>
+                              <SearchResultMeta>폴더</SearchResultMeta>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultGroup>
+                    )}
+                    {globalSearchResults.files.length > 0 && (
+                      <SearchResultGroup>
+                        <SearchResultGroupTitle>파일</SearchResultGroupTitle>
+                        {globalSearchResults.files.map(file => (
+                          <SearchResultItem key={file.id} onClick={() => { setPreviewFile(file); setIsPreviewOpen(true); setGlobalSearch(''); }}>
+                            <SearchResultIcon $type="file">
+                              <AppIcon name="file" size={16} fillColor="ICON_NEUTRAL" />
+                            </SearchResultIcon>
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(file.name, globalSearch)}</SearchResultName>
+                              <SearchResultMeta>{file.uploader} · {file.date} · {file.size}</SearchResultMeta>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultGroup>
+                    )}
+                  </SearchResultDropdown>
+                </GlobalSearchInputWrapper>
+                <AppTextButton
+                  variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
+                  size="MEDIUM"
+                  prefixIcon={<AppIcon name="filter" size={16} />}
+                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+                >
+                  상세 필터
+                </AppTextButton>
+              </GlobalSearchRow>
+              {isFilterOpen && (
+                <FilterChipsRow>
+                  <FilterChipGroup>
+                    <FilterChipLabel>컨설턴트</FilterChipLabel>
+                    <AppSelect
+                      placeholder="전체"
+                      width={130}
+                      value={consultantFilter}
+                      onChange={(v) => setConsultantFilter(String(v))}
+                      options={CONSULTANTS}
+                    />
+                  </FilterChipGroup>
+                  <FilterChipGroup>
+                    <FilterChipLabel>파일 타입</FilterChipLabel>
+                    <AppSelect
+                      placeholder="전체"
+                      width={130}
+                      value={fileTypeFilter}
+                      onChange={(v) => setFileTypeFilter(String(v))}
+                      options={FILE_TYPE_OPTIONS}
+                    />
+                  </FilterChipGroup>
+                  <FilterChipGroup>
+                    <FilterChipLabel>업로더</FilterChipLabel>
+                    <AppSelect
+                      placeholder="전체"
+                      width={130}
+                      value={uploaderFilter}
+                      onChange={(v) => setUploaderFilter(String(v))}
+                      options={UPLOADER_OPTIONS}
+                    />
+                  </FilterChipGroup>
+                  <FilterChipGroup>
+                    <FilterChipLabel>기간</FilterChipLabel>
+                    <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: 130 }} />
+                    <span style={{ color: COLOR.GRAY50 }}>~</span>
+                    <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: 130 }} />
+                  </FilterChipGroup>
+                  {(consultantFilter !== 'all' || fileTypeFilter !== 'all' || uploaderFilter !== 'all' || dateFrom || dateTo) && (
+                    <AppTextButton
+                      variant="SECONDARY"
+                      size="SMALL"
+                      onClick={() => { setConsultantFilter('all'); setFileTypeFilter('all'); setUploaderFilter('all'); setDateFrom(''); setDateTo(''); }}
+                    >
+                      필터 초기화
+                    </AppTextButton>
+                  )}
+                </FilterChipsRow>
+              )}
+            </GlobalSearchSection>
 
             <TableCard>
               <AppTable<Company> columns={companyColumns} data={filteredCompanies} rowKey="id" />
@@ -2095,7 +2393,7 @@ export default function DocsPage() {
             <PageHeader>
               <AppBreadcrumb items={[
                 { label: '홈', onClick: () => {} },
-                { label: '서류 저장소', onClick: () => { setCurrentView('companies'); setSelectedCompany(null); } },
+                { label: '파일 관리 시스템', onClick: () => { setCurrentView('companies'); setSelectedCompany(null); } },
                 { label: selectedCompany?.nameKo || '' },
               ]} />
               <PageTitleRow style={{ marginTop: 12 }}>
@@ -2307,7 +2605,14 @@ export default function DocsPage() {
                         onDoubleClick={() => { if (file.type !== 'folder') { setPreviewFile(file); setIsPreviewOpen(true); } }}
                       >
                         <Checkbox checked={selectedFiles.includes(file.id)} onChange={() => toggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} disabled={file.type === 'folder'} />
-                        <FileName>{getFileIcon(file.type)} {file.name}</FileName>
+                        <FileName>
+                          {getFileIcon(file.type)} {file.name}
+                          {file.type === 'folder' && file.isEmpty && (
+                            <EmptyFolderBadge title="빈 폴더">
+                              <AppIcon name="warning" size={10} fillColor="ICON_ASSISTIVE" />
+                            </EmptyFolderBadge>
+                          )}
+                        </FileName>
                         <FileMeta>{file.size}</FileMeta>
                         <FileMeta>{file.date}</FileMeta>
                         <div>
@@ -2364,7 +2669,7 @@ export default function DocsPage() {
         return (
           <PageWrapper>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '서류 저장소', onClick: () => setCurrentView('companies') }, { label: '휴지통' }]} />
+              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템', onClick: () => setCurrentView('companies') }, { label: '휴지통' }]} />
               <PageTitleRow style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView(selectedCompany ? 'files' : 'companies')} />
@@ -2384,7 +2689,7 @@ export default function DocsPage() {
         return (
           <PageWrapper>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '서류 저장소', onClick: () => setCurrentView('companies') }, { label: '권한 관리' }]} />
+              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템', onClick: () => setCurrentView('companies') }, { label: '권한 관리' }]} />
               <PageTitleRow style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView('files')} />
