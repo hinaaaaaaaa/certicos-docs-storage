@@ -178,11 +178,38 @@ const UPLOADER_OPTIONS = [
 const PageContainer = styled.div`
   min-height: 100vh;
   background: ${COLOR.BLUEGRAY10};
+  display: flex;
+  flex-direction: column;
+`;
+
+// ---- 고정 헤더 (검색창) ----
+const FixedHeader = styled.div`
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: ${COLOR.WHITE};
+  border-bottom: 1px solid ${COLOR.GRAY20};
+  padding: 16px 28px;
+`;
+
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+`;
+
+const Logo = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: ${COLOR.PRIMARY60};
+  white-space: nowrap;
+  cursor: pointer;
 `;
 
 // ---- 공통 페이지 영역 ----
 const PageWrapper = styled.div`
   padding: 24px 28px;
+  flex: 1;
 `;
 
 const PageHeader = styled.div`
@@ -648,33 +675,30 @@ const TrashNotice = styled.div`
 
 // ---- 통합 검색 ----
 const GlobalSearchSection = styled.div`
-  background: ${COLOR.WHITE};
-  border: 1px solid ${COLOR.GRAY20};
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 20px;
+  flex: 1;
+  max-width: 680px;
 `;
 
 const GlobalSearchRow = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
 `;
 
 const GlobalSearchInput = styled.input`
   flex: 1;
-  height: 44px;
-  padding: 0 16px 0 44px;
+  height: 40px;
+  padding: 0 16px 0 40px;
   border: 1px solid ${COLOR.GRAY30};
-  border-radius: 8px;
+  border-radius: 24px;
   font-size: 14px;
-  background: ${COLOR.WHITE};
+  background: ${COLOR.BLUEGRAY10};
   outline: none;
   transition: all 0.2s ease;
 
   &:focus {
     border-color: ${COLOR.PRIMARY60};
+    background: ${COLOR.WHITE};
     box-shadow: 0 0 0 3px ${COLOR.PRIMARY10};
   }
 
@@ -2217,165 +2241,14 @@ export default function DocsPage() {
         return (
           <PageWrapper onClick={() => setIsNotificationOpen(false)}>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템' }]} />
-              <PageTitleRow style={{ marginTop: 8 }}>
-                <PageTitle>파일 관리 시스템</PageTitle>
+              <PageTitleRow>
+                <PageTitle>전체 회사</PageTitle>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <NotificationWrapper onClick={(e) => e.stopPropagation()}>
-                    <NotificationBell onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
-                      <AppIcon name="bell" size={18} fillColor="ICON_NEUTRAL" />
-                      {unreadCount > 0 && <NotificationBadge>{unreadCount}</NotificationBadge>}
-                    </NotificationBell>
-                    <NotificationPanel $isOpen={isNotificationOpen}>
-                      <NotificationHeader>
-                        <AppTypography variant="BODY1_500" color="TEXT_STRONG">알림</AppTypography>
-                        <button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))} style={{ background: 'none', border: 'none', color: COLOR.PRIMARY60, fontSize: 13, cursor: 'pointer' }}>
-                          모두 읽음
-                        </button>
-                      </NotificationHeader>
-                      <NotificationList>
-                        {notifications.map(n => (
-                          <NotificationItem key={n.id} $isRead={n.isRead}>
-                            <NotificationIcon $type={n.type}>{getNotifIcon(n.type)}</NotificationIcon>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: n.isRead ? 400 : 500 }}>{n.title}</div>
-                              <div style={{ fontSize: 12, color: COLOR.GRAY70, marginTop: 2 }}>{n.message}</div>
-                              <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 4 }}>{n.time}</div>
-                            </div>
-                          </NotificationItem>
-                        ))}
-                      </NotificationList>
-                    </NotificationPanel>
-                  </NotificationWrapper>
                   <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setCurrentView('trash')}>휴지통</AppTextButton>
                   <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
                 </div>
               </PageTitleRow>
             </PageHeader>
-
-            <GlobalSearchSection>
-              <GlobalSearchRow>
-                <GlobalSearchInputWrapper>
-                  <GlobalSearchIcon>
-                    <AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" />
-                  </GlobalSearchIcon>
-                  <GlobalSearchInput
-                    placeholder="회사, 폴더, 파일명으로 통합 검색..."
-                    value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                  />
-                  <SearchResultDropdown $isOpen={isSearchFocused && hasSearchResults}>
-                    {globalSearchResults.companies.length > 0 && (
-                      <SearchResultGroup>
-                        <SearchResultGroupTitle>회사</SearchResultGroupTitle>
-                        {globalSearchResults.companies.map(company => (
-                          <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); }}>
-                            <SearchResultIcon $type="company">
-                              <AppIcon name="folder" size={16} fillColor="ICON_PRIMARY" />
-                            </SearchResultIcon>
-                            <SearchResultInfo>
-                              <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
-                              <SearchResultMeta>{company.consultant} · {company.productCount}개 제품</SearchResultMeta>
-                            </SearchResultInfo>
-                          </SearchResultItem>
-                        ))}
-                      </SearchResultGroup>
-                    )}
-                    {globalSearchResults.folders.length > 0 && (
-                      <SearchResultGroup>
-                        <SearchResultGroupTitle>폴더</SearchResultGroupTitle>
-                        {globalSearchResults.folders.map(folder => (
-                          <SearchResultItem key={folder.id}>
-                            <SearchResultIcon $type="folder">
-                              <AppIcon name="folder" size={16} fillColor="ICON_NEUTRAL" />
-                            </SearchResultIcon>
-                            <SearchResultInfo>
-                              <SearchResultName>{highlightText(folder.name, globalSearch)}</SearchResultName>
-                              <SearchResultMeta>폴더</SearchResultMeta>
-                            </SearchResultInfo>
-                          </SearchResultItem>
-                        ))}
-                      </SearchResultGroup>
-                    )}
-                    {globalSearchResults.files.length > 0 && (
-                      <SearchResultGroup>
-                        <SearchResultGroupTitle>파일</SearchResultGroupTitle>
-                        {globalSearchResults.files.map(file => (
-                          <SearchResultItem key={file.id} onClick={() => { setPreviewFile(file); setIsPreviewOpen(true); setGlobalSearch(''); }}>
-                            <SearchResultIcon $type="file">
-                              <AppIcon name="file" size={16} fillColor="ICON_NEUTRAL" />
-                            </SearchResultIcon>
-                            <SearchResultInfo>
-                              <SearchResultName>{highlightText(file.name, globalSearch)}</SearchResultName>
-                              <SearchResultMeta>{file.uploader} · {file.date} · {file.size}</SearchResultMeta>
-                            </SearchResultInfo>
-                          </SearchResultItem>
-                        ))}
-                      </SearchResultGroup>
-                    )}
-                  </SearchResultDropdown>
-                </GlobalSearchInputWrapper>
-                <AppTextButton
-                  variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
-                  size="MEDIUM"
-                  prefixIcon={<AppIcon name="filter" size={16} />}
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
-                >
-                  상세 필터
-                </AppTextButton>
-              </GlobalSearchRow>
-              {isFilterOpen && (
-                <FilterChipsRow>
-                  <FilterChipGroup>
-                    <FilterChipLabel>컨설턴트</FilterChipLabel>
-                    <AppSelect
-                      placeholder="전체"
-                      width={130}
-                      value={consultantFilter}
-                      onChange={(v) => setConsultantFilter(String(v))}
-                      options={CONSULTANTS}
-                    />
-                  </FilterChipGroup>
-                  <FilterChipGroup>
-                    <FilterChipLabel>파일 타입</FilterChipLabel>
-                    <AppSelect
-                      placeholder="전체"
-                      width={130}
-                      value={fileTypeFilter}
-                      onChange={(v) => setFileTypeFilter(String(v))}
-                      options={FILE_TYPE_OPTIONS}
-                    />
-                  </FilterChipGroup>
-                  <FilterChipGroup>
-                    <FilterChipLabel>업로더</FilterChipLabel>
-                    <AppSelect
-                      placeholder="전체"
-                      width={130}
-                      value={uploaderFilter}
-                      onChange={(v) => setUploaderFilter(String(v))}
-                      options={UPLOADER_OPTIONS}
-                    />
-                  </FilterChipGroup>
-                  <FilterChipGroup>
-                    <FilterChipLabel>기간</FilterChipLabel>
-                    <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: 130 }} />
-                    <span style={{ color: COLOR.GRAY50 }}>~</span>
-                    <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: 130 }} />
-                  </FilterChipGroup>
-                  {(consultantFilter !== 'all' || fileTypeFilter !== 'all' || uploaderFilter !== 'all' || dateFrom || dateTo) && (
-                    <AppTextButton
-                      variant="SECONDARY"
-                      size="SMALL"
-                      onClick={() => { setConsultantFilter('all'); setFileTypeFilter('all'); setUploaderFilter('all'); setDateFrom(''); setDateTo(''); }}
-                    >
-                      필터 초기화
-                    </AppTextButton>
-                  )}
-                </FilterChipsRow>
-              )}
-            </GlobalSearchSection>
 
             <TableCard>
               <AppTable<Company> columns={companyColumns} data={filteredCompanies} rowKey="id" />
@@ -2785,6 +2658,140 @@ export default function DocsPage() {
 
   return (
     <PageContainer>
+      <FixedHeader>
+        <HeaderRow>
+          <Logo onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }}>파일 관리 시스템</Logo>
+          <GlobalSearchSection>
+            <GlobalSearchRow>
+              <GlobalSearchInputWrapper>
+                <GlobalSearchIcon>
+                  <AppIcon name="search" size={16} fillColor="ICON_ASSISTIVE" />
+                </GlobalSearchIcon>
+                <GlobalSearchInput
+                  placeholder="회사, 폴더, 파일명으로 검색..."
+                  value={globalSearch}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                />
+                <SearchResultDropdown $isOpen={isSearchFocused && hasSearchResults}>
+                  {globalSearchResults.companies.length > 0 && (
+                    <SearchResultGroup>
+                      <SearchResultGroupTitle>회사</SearchResultGroupTitle>
+                      {globalSearchResults.companies.map(company => (
+                        <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); }}>
+                          <SearchResultIcon $type="company">
+                            <AppIcon name="folder" size={16} fillColor="ICON_PRIMARY" />
+                          </SearchResultIcon>
+                          <SearchResultInfo>
+                            <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
+                            <SearchResultMeta>{company.consultant} · {company.productCount}개 제품</SearchResultMeta>
+                          </SearchResultInfo>
+                        </SearchResultItem>
+                      ))}
+                    </SearchResultGroup>
+                  )}
+                  {globalSearchResults.folders.length > 0 && (
+                    <SearchResultGroup>
+                      <SearchResultGroupTitle>폴더</SearchResultGroupTitle>
+                      {globalSearchResults.folders.map(folder => (
+                        <SearchResultItem key={folder.id}>
+                          <SearchResultIcon $type="folder">
+                            <AppIcon name="folder" size={16} fillColor="ICON_NEUTRAL" />
+                          </SearchResultIcon>
+                          <SearchResultInfo>
+                            <SearchResultName>{highlightText(folder.name, globalSearch)}</SearchResultName>
+                            <SearchResultMeta>폴더</SearchResultMeta>
+                          </SearchResultInfo>
+                        </SearchResultItem>
+                      ))}
+                    </SearchResultGroup>
+                  )}
+                  {globalSearchResults.files.length > 0 && (
+                    <SearchResultGroup>
+                      <SearchResultGroupTitle>파일</SearchResultGroupTitle>
+                      {globalSearchResults.files.map(file => (
+                        <SearchResultItem key={file.id} onClick={() => { setPreviewFile(file); setIsPreviewOpen(true); setGlobalSearch(''); }}>
+                          <SearchResultIcon $type="file">
+                            <AppIcon name="file" size={16} fillColor="ICON_NEUTRAL" />
+                          </SearchResultIcon>
+                          <SearchResultInfo>
+                            <SearchResultName>{highlightText(file.name, globalSearch)}</SearchResultName>
+                            <SearchResultMeta>{file.uploader} · {file.date} · {file.size}</SearchResultMeta>
+                          </SearchResultInfo>
+                        </SearchResultItem>
+                      ))}
+                    </SearchResultGroup>
+                  )}
+                </SearchResultDropdown>
+              </GlobalSearchInputWrapper>
+            </GlobalSearchRow>
+          </GlobalSearchSection>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AppTextButton
+              variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
+              size="SMALL"
+              prefixIcon={<AppIcon name="filter" size={14} />}
+              onClick={() => setIsFilterOpen(!isFilterOpen)}
+            >
+              필터
+            </AppTextButton>
+            <NotificationWrapper onClick={(e) => e.stopPropagation()}>
+              <NotificationBell onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
+                <AppIcon name="bell" size={18} fillColor="ICON_NEUTRAL" />
+                {unreadCount > 0 && <NotificationBadge>{unreadCount}</NotificationBadge>}
+              </NotificationBell>
+              <NotificationPanel $isOpen={isNotificationOpen}>
+                <NotificationHeader>
+                  <AppTypography variant="BODY1_500" color="TEXT_STRONG">알림</AppTypography>
+                  <button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))} style={{ background: 'none', border: 'none', color: COLOR.PRIMARY60, fontSize: 13, cursor: 'pointer' }}>
+                    모두 읽음
+                  </button>
+                </NotificationHeader>
+                <NotificationList>
+                  {notifications.map(n => (
+                    <NotificationItem key={n.id} $isRead={n.isRead}>
+                      <NotificationIcon $type={n.type}>{getNotifIcon(n.type)}</NotificationIcon>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: n.isRead ? 400 : 500 }}>{n.title}</div>
+                        <div style={{ fontSize: 12, color: COLOR.GRAY70, marginTop: 2 }}>{n.message}</div>
+                        <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 4 }}>{n.time}</div>
+                      </div>
+                    </NotificationItem>
+                  ))}
+                </NotificationList>
+              </NotificationPanel>
+            </NotificationWrapper>
+          </div>
+        </HeaderRow>
+        {isFilterOpen && (
+          <FilterChipsRow style={{ marginTop: 12 }}>
+            <FilterChipGroup>
+              <FilterChipLabel>컨설턴트</FilterChipLabel>
+              <AppSelect placeholder="전체" width={120} value={consultantFilter} onChange={(v) => setConsultantFilter(String(v))} options={CONSULTANTS} />
+            </FilterChipGroup>
+            <FilterChipGroup>
+              <FilterChipLabel>파일 타입</FilterChipLabel>
+              <AppSelect placeholder="전체" width={120} value={fileTypeFilter} onChange={(v) => setFileTypeFilter(String(v))} options={FILE_TYPE_OPTIONS} />
+            </FilterChipGroup>
+            <FilterChipGroup>
+              <FilterChipLabel>업로더</FilterChipLabel>
+              <AppSelect placeholder="전체" width={120} value={uploaderFilter} onChange={(v) => setUploaderFilter(String(v))} options={UPLOADER_OPTIONS} />
+            </FilterChipGroup>
+            <FilterChipGroup>
+              <FilterChipLabel>기간</FilterChipLabel>
+              <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: 120 }} />
+              <span style={{ color: COLOR.GRAY50 }}>~</span>
+              <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: 120 }} />
+            </FilterChipGroup>
+            {(consultantFilter !== 'all' || fileTypeFilter !== 'all' || uploaderFilter !== 'all' || dateFrom || dateTo) && (
+              <AppTextButton variant="SECONDARY" size="SMALL" onClick={() => { setConsultantFilter('all'); setFileTypeFilter('all'); setUploaderFilter('all'); setDateFrom(''); setDateTo(''); }}>
+                초기화
+              </AppTextButton>
+            )}
+          </FilterChipsRow>
+        )}
+      </FixedHeader>
       {renderContent()}
 
       {/* 파일 공유 모달 */}
