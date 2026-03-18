@@ -421,7 +421,7 @@ const NotificationIcon = styled.div<{ $type: string }>`
 // ---- 파일뷰 레이아웃 ----
 const FileLayout = styled.div`
   display: flex;
-  height: calc(100vh - 140px);
+  height: calc(100vh - 320px);
   background: ${COLOR.WHITE};
   border-radius: 8px;
   border: 1px solid ${COLOR.GRAY30};
@@ -782,6 +782,94 @@ const SearchBar = styled.div`
   border-bottom: 1px solid ${COLOR.GRAY30};
 `;
 
+// ---- 태그 검색 관련 ----
+const TagSearchArea = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: ${COLOR.BLUEGRAY10};
+  border-bottom: 1px solid ${COLOR.GRAY20};
+`;
+
+const TagChip = styled.div<{ $type?: 'company' | 'uploader' | 'type' | 'status' | 'date' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: default;
+
+  ${({ $type }) => {
+    switch ($type) {
+      case 'company':
+        return `background: ${COLOR.PRIMARY10}; color: ${COLOR.PRIMARY70}; border: 1px solid ${COLOR.PRIMARY40};`;
+      case 'uploader':
+        return `background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7;`;
+      case 'type':
+        return `background: #fff3e0; color: #e65100; border: 1px solid #ffcc80;`;
+      case 'status':
+        return `background: #fce4ec; color: #c2185b; border: 1px solid #f48fb1;`;
+      case 'date':
+        return `background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9;`;
+      default:
+        return `background: ${COLOR.GRAY20}; color: ${COLOR.GRAY80}; border: 1px solid ${COLOR.GRAY30};`;
+    }
+  }}
+`;
+
+const TagChipClose = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0;
+
+  &:hover {
+    opacity: 1;
+  }
+`;
+
+const TagLabel = styled.span`
+  font-size: 10px;
+  color: ${COLOR.GRAY60};
+  margin-right: 2px;
+`;
+
+const QuickTagGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+`;
+
+const QuickTagBtn = styled.button<{ $active?: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  border: 1px solid ${({ $active }) => $active ? COLOR.PRIMARY60 : COLOR.GRAY30};
+  background: ${({ $active }) => $active ? COLOR.PRIMARY10 : COLOR.WHITE};
+  color: ${({ $active }) => $active ? COLOR.PRIMARY70 : COLOR.GRAY70};
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY50};
+    background: ${COLOR.PRIMARY10};
+  }
+`;
+
 // ---- 모달 관련 ----
 const ModalSection = styled.div`
   margin-bottom: 20px;
@@ -1134,6 +1222,62 @@ const UploadFolderPath = styled.div`
   &:hover {
     border-color: ${COLOR.PRIMARY60};
   }
+`;
+
+// ---- 담당자 정보 카드 ----
+const ManagerSection = styled.div`
+  display: flex;
+  gap: 24px;
+  padding: 20px 24px;
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY20};
+  border-radius: 12px;
+  margin-bottom: 20px;
+`;
+
+const ManagerItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+`;
+
+const ManagerLabel = styled.span`
+  font-size: 11px;
+  color: ${COLOR.GRAY60};
+  font-weight: 500;
+`;
+
+const ManagerValue = styled.span`
+  font-size: 14px;
+  color: ${COLOR.GRAY90};
+  font-weight: 500;
+`;
+
+const ManagerDivider = styled.div`
+  width: 1px;
+  background: ${COLOR.GRAY20};
+`;
+
+const QuickStatBadge = styled.div<{ $variant?: 'primary' | 'success' | 'warning' }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+
+  ${({ $variant }) => {
+    switch ($variant) {
+      case 'success':
+        return `background: #e6f4ea; color: #188038;`;
+      case 'warning':
+        return `background: #fef7e0; color: #b06000;`;
+      default:
+        return `background: ${COLOR.PRIMARY10}; color: ${COLOR.PRIMARY60};`;
+    }
+  }}
 `;
 
 // ---- 미리보기 모달 ----
@@ -1519,6 +1663,28 @@ export default function DocsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // 태그 검색 상태
+  interface SearchTag {
+    id: string;
+    type: 'company' | 'uploader' | 'type' | 'status' | 'date';
+    label: string;
+    value: string;
+  }
+  const [searchTags, setSearchTags] = useState<SearchTag[]>([]);
+
+  const addSearchTag = (tag: Omit<SearchTag, 'id'>) => {
+    const newTag = { ...tag, id: `tag-${Date.now()}` };
+    setSearchTags(prev => [...prev.filter(t => !(t.type === tag.type && t.value === tag.value)), newTag]);
+  };
+
+  const removeSearchTag = (tagId: string) => {
+    setSearchTags(prev => prev.filter(t => t.id !== tagId));
+  };
+
+  const clearAllTags = () => {
+    setSearchTags([]);
+  };
+
   // 드래그앤드롭 상태
   const [isDragging, setIsDragging] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState<Array<{ name: string; size: string; progress: number }>>([]);
@@ -1602,6 +1768,19 @@ export default function DocsPage() {
       if (dateFrom && fileDate < dateFrom) return false;
       if (dateTo && fileDate > dateTo) return false;
     }
+    // 태그 기반 필터
+    for (const tag of searchTags) {
+      if (tag.type === 'uploader' && file.uploader !== tag.value && file.type !== 'folder') return false;
+      if (tag.type === 'type') {
+        const tagType = tag.value.toLowerCase();
+        if (file.type !== tagType && file.type !== 'folder') return false;
+      }
+      if (tag.type === 'status') {
+        if (tag.value === '추출완료' && file.extractStatus !== 'completed') return false;
+        if (tag.value === '추출실패' && file.extractStatus !== 'failed') return false;
+        if (tag.value === '미추출' && file.extractStatus !== 'none') return false;
+      }
+    }
     return true;
   });
 
@@ -1610,6 +1789,11 @@ export default function DocsPage() {
     // 컨설턴트 필터
     if (consultantFilter !== 'all' && company.consultant !== consultantFilter) {
       return false;
+    }
+    // 태그 기반 필터
+    for (const tag of searchTags) {
+      if (tag.type === 'company' && !company.nameKo.includes(tag.value)) return false;
+      if (tag.type === 'uploader' && company.consultant !== tag.value && company.documentManager !== tag.value) return false;
     }
     return true;
   });
@@ -1914,10 +2098,10 @@ export default function DocsPage() {
                 { label: '서류 저장소', onClick: () => { setCurrentView('companies'); setSelectedCompany(null); } },
                 { label: selectedCompany?.nameKo || '' },
               ]} />
-              <PageTitleRow style={{ marginTop: 8 }}>
+              <PageTitleRow style={{ marginTop: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }} />
-                  <PageTitle style={{ fontSize: 20 }}>{selectedCompany?.nameKo} 서류</PageTitle>
+                  <PageTitle style={{ fontSize: 20 }}>{selectedCompany?.nameKo}</PageTitle>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setCurrentView('permissions')}>권한 관리</AppTextButton>
@@ -1925,6 +2109,23 @@ export default function DocsPage() {
                 </div>
               </PageTitleRow>
             </PageHeader>
+
+            <ManagerSection>
+              <ManagerItem>
+                <ManagerLabel>컨설턴트</ManagerLabel>
+                <ManagerValue>{selectedCompany?.consultant}</ManagerValue>
+              </ManagerItem>
+              <ManagerDivider />
+              <ManagerItem>
+                <ManagerLabel>서류 담당</ManagerLabel>
+                <ManagerValue>{selectedCompany?.documentManager}</ManagerValue>
+              </ManagerItem>
+              <ManagerDivider />
+              <ManagerItem>
+                <ManagerLabel>품질 담당</ManagerLabel>
+                <ManagerValue>{selectedCompany?.qualityManager}</ManagerValue>
+              </ManagerItem>
+            </ManagerSection>
 
             <FileLayout>
               <Sidebar>
@@ -1961,9 +2162,6 @@ export default function DocsPage() {
                     { label: '25년 1차', onClick: () => {} },
                     { label: '제품B' },
                   ]} />
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-                    <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="folder" size={14} />}>폴더 만들기</AppTextButton>
-                  </div>
                 </FileToolbar>
                 <SearchBar>
                   <AppSearchInput
@@ -1978,12 +2176,44 @@ export default function DocsPage() {
                     prefixIcon={<AppIcon name="filter" size={14} />}
                     onClick={() => setIsFilterOpen(!isFilterOpen)}
                   >
-                    상세 필터 {isFilterOpen ? '닫기' : '열기'}
+                    상세 필터
                   </AppTextButton>
-                  {(fileTypeFilter !== 'all' || uploaderFilter !== 'all' || fileSizeFilter !== 'all' || dateFrom || dateTo) && (
-                    <span style={{ fontSize: 12, color: COLOR.PRIMARY60 }}>필터 적용됨</span>
+                  {(fileTypeFilter !== 'all' || uploaderFilter !== 'all' || fileSizeFilter !== 'all' || dateFrom || dateTo || searchTags.length > 0) && (
+                    <span style={{ fontSize: 12, color: COLOR.PRIMARY60 }}>{searchTags.length + (fileTypeFilter !== 'all' ? 1 : 0) + (uploaderFilter !== 'all' ? 1 : 0)}개 필터</span>
                   )}
                 </SearchBar>
+                {(searchTags.length > 0 || isFilterOpen) && (
+                  <TagSearchArea>
+                    {searchTags.map(tag => (
+                      <TagChip key={tag.id} $type={tag.type}>
+                        <TagLabel>{tag.label}:</TagLabel>
+                        {tag.value}
+                        <TagChipClose onClick={() => removeSearchTag(tag.id)}>
+                          <AppIcon name="close" size={10} fillColor="ICON_NEUTRAL" />
+                        </TagChipClose>
+                      </TagChip>
+                    ))}
+                    <QuickTagGroup>
+                      <QuickTagBtn onClick={() => addSearchTag({ type: 'company', label: '회사', value: selectedCompany?.nameKo || '' })}>
+                        + 회사
+                      </QuickTagBtn>
+                      <QuickTagBtn onClick={() => addSearchTag({ type: 'uploader', label: '업로더', value: '김담당' })}>
+                        + 업로더
+                      </QuickTagBtn>
+                      <QuickTagBtn onClick={() => addSearchTag({ type: 'type', label: '타입', value: 'PDF' })}>
+                        + PDF
+                      </QuickTagBtn>
+                      <QuickTagBtn onClick={() => addSearchTag({ type: 'status', label: '상태', value: '추출완료' })}>
+                        + 추출완료
+                      </QuickTagBtn>
+                      {searchTags.length > 0 && (
+                        <QuickTagBtn onClick={clearAllTags} style={{ color: COLOR.RED60, borderColor: COLOR.RED60 }}>
+                          전체 해제
+                        </QuickTagBtn>
+                      )}
+                    </QuickTagGroup>
+                  </TagSearchArea>
+                )}
                 <FilterPanel $isOpen={isFilterOpen}>
                   <FilterGrid>
                     <FilterGroup>

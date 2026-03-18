@@ -11,7 +11,6 @@ import {
   AppTextButton,
   AppIconButton,
   AppSelect,
-  AppBreadcrumb,
   AppPagination,
 } from '@/design-system';
 import AppDrawer from '@/design-system/components/AppDrawer';
@@ -385,33 +384,27 @@ const CompanyName = styled.div`
 const CompanyInfoBar = styled.div`
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 8px 16px;
-  background: ${COLOR.BLUEGRAY10};
-  border-radius: 8px;
+  gap: 12px;
+  font-size: 12px;
+  color: ${COLOR.GRAY70};
 `;
 
-const InfoItem = styled.div`
-  display: flex;
+const InfoItem = styled.span`
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 `;
 
 const InfoLabel = styled.span`
-  font-size: 12px;
-  color: ${COLOR.GRAY60};
+  color: ${COLOR.GRAY50};
 `;
 
 const InfoValue = styled.span`
-  font-size: 13px;
-  color: ${COLOR.GRAY90};
-  font-weight: 500;
+  color: ${COLOR.GRAY80};
 `;
 
-const InfoDivider = styled.div`
-  width: 1px;
-  height: 16px;
-  background: ${COLOR.GRAY30};
+const InfoDivider = styled.span`
+  color: ${COLOR.GRAY40};
 `;
 
 const FilterGroup = styled.div`
@@ -2761,20 +2754,11 @@ export default function FileListPage() {
         </CompanyName>
 
         <CompanyInfoBar>
-          <InfoItem>
-            <InfoLabel>컨설턴트</InfoLabel>
-            <InfoValue>{companyInfo.consultant}</InfoValue>
-          </InfoItem>
-          <InfoDivider />
-          <InfoItem>
-            <InfoLabel>서류 취합</InfoLabel>
-            <InfoValue>{companyInfo.documentManager}</InfoValue>
-          </InfoItem>
-          <InfoDivider />
-          <InfoItem>
-            <InfoLabel>품질 담당</InfoLabel>
-            <InfoValue>{companyInfo.qualityManager}</InfoValue>
-          </InfoItem>
+          <InfoItem><InfoLabel>컨설턴트</InfoLabel> <InfoValue>{companyInfo.consultant}</InfoValue></InfoItem>
+          <InfoDivider>·</InfoDivider>
+          <InfoItem><InfoLabel>서류</InfoLabel> <InfoValue>{companyInfo.documentManager}</InfoValue></InfoItem>
+          <InfoDivider>·</InfoDivider>
+          <InfoItem><InfoLabel>품질</InfoLabel> <InfoValue>{companyInfo.qualityManager}</InfoValue></InfoItem>
         </CompanyInfoBar>
 
         <FilterGroup>
@@ -2892,10 +2876,7 @@ export default function FileListPage() {
         <ContentArea>
           <ContentHeader>
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '회사별 제품 관리', onClick: () => {} }, { label: '회사 제품 상세' }]} />
-              </div>
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 16 }}>
                 <AppTypography variant="TITLE2_600" color="TEXT_STRONG">
                   {companyName} | 111-05-00000
                 </AppTypography>
