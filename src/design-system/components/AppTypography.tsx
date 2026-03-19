@@ -13,6 +13,7 @@ interface AppTypographyProps {
   as?: 'h1' | 'h2' | 'h3' | 'p' | 'span' | 'div';
   ellipsis?: number;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const StyledTypography = styled.span<{
@@ -45,6 +46,7 @@ export const AppTypography = ({
   as = 'span',
   ellipsis,
   className,
+  style,
 }: AppTypographyProps) => {
   const { size, weight, lineHeight } = TYPOGRAPHY[variant];
 
@@ -57,6 +59,7 @@ export const AppTypography = ({
       $color={color ? SEMANTIC[color] : undefined}
       $ellipsis={ellipsis}
       className={className}
+      style={style}
     >
       {children}
     </StyledTypography>

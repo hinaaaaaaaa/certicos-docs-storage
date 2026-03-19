@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
 import { useRouter } from 'next/navigation';
 import {
@@ -48,6 +48,7 @@ interface FileData {
   originalPath?: string;
   deletedAt?: string;
   expiresAt?: string;
+  tags?: string[];
 }
 
 interface Notification {
@@ -89,15 +90,18 @@ interface AllergenData {
   allergenList: Record<string, string>;
 }
 
-const MOCK_FILES: (FileData & { isEmpty?: boolean })[] = [
-  { id: 'f1', name: '견적서/의뢰서', size: '—', date: '2026.03.10', uploader: '', type: 'folder', isEmpty: false },
+const MOCK_FILES: (FileData & { isEmpty?: boolean; isStarred?: boolean; isShared?: boolean; sharedWith?: string[] })[] = [
+  { id: 'f1', name: '견적서/의뢰서', size: '—', date: '2026.03.10', uploader: '', type: 'folder', isEmpty: false, isStarred: true },
   { id: 'f2', name: 'PIF', size: '—', date: '2026.03.08', uploader: '', type: 'folder', isEmpty: true },
-  { id: '1', name: '제품B_견적서_v2.pdf', size: '2.4 MB', date: '2026.03.14', uploader: '김민준', type: 'pdf', extractStatus: 'completed', extractData: { productName: '제품B (ProductB-2000)', customer: '삼성메디칼', amount: '₩ 12,500,000', date: '2026-03-14', consultant: '김민준' } },
-  { id: '2', name: '의뢰서_삼성메디칼.xlsx', size: '512 KB', date: '2026.03.11', uploader: '이매니저', type: 'xlsx', extractStatus: 'failed' },
-  { id: '3', name: '제품사진_001.jpg', size: '8.1 MB', date: '2026.03.09', uploader: '박컨설턴트', type: 'jpg', extractStatus: 'none' },
-  { id: '4', name: '해외인허가_등록증.pdf', size: '1.2 MB', date: '2026.03.07', uploader: '김담당', type: 'pdf', extractStatus: 'none' },
-  { id: '5', name: 'ALLERGEN_ORANGE_OIL.pdf', size: '890 KB', date: '2026.03.15', uploader: '김담당', type: 'pdf', extractStatus: 'completed', extractData: { productName: 'ORANGE OIL(GC)', customer: '㈜한빛향료', amount: '', date: '2024-07-22', consultant: '' } },
+  { id: '1', name: '제품B_견적서_v2.pdf', size: '2.4 MB', date: '2026.03.14', uploader: '김민준', type: 'pdf', extractStatus: 'completed', extractData: { productName: '제품B (ProductB-2000)', customer: '삼성메디칼', amount: '₩ 12,500,000', date: '2026-03-14', consultant: '김민준' }, isStarred: true, isShared: true, sharedWith: ['이매니저', '박컨설턴트'], tags: ['견적서', '긴급', '승인완료'] },
+  { id: '2', name: '의뢰서_삼성메디칼.xlsx', size: '512 KB', date: '2026.03.11', uploader: '이매니저', type: 'xlsx', extractStatus: 'failed', isShared: true, sharedWith: ['김담당'], tags: ['의뢰서', '검토중'] },
+  { id: '3', name: '제품사진_001.jpg', size: '8.1 MB', date: '2026.03.09', uploader: '박컨설턴트', type: 'jpg', extractStatus: 'none', tags: ['이미지', '제품사진'] },
+  { id: '4', name: '해외인허가_등록증.pdf', size: '1.2 MB', date: '2026.03.07', uploader: '김담당', type: 'pdf', extractStatus: 'none', isStarred: true, tags: ['인허가', '해외', '승인완료'] },
+  { id: '5', name: 'ALLERGEN_ORANGE_OIL.pdf', size: '890 KB', date: '2026.03.15', uploader: '김담당', type: 'pdf', extractStatus: 'completed', extractData: { productName: 'ORANGE OIL(GC)', customer: '㈜한빛향료', amount: '', date: '2024-07-22', consultant: '' }, isShared: true, sharedWith: ['김민준', '이매니저'], tags: ['알러젠', 'MSDS', '원료'] },
 ];
+
+// 파일 태그 목록
+const FILE_TAGS = ['견적서', '의뢰서', '긴급', '승인완료', '검토중', '인허가', '해외', '알러젠', 'MSDS', '원료', '이미지', '제품사진'];
 
 // 알러젠 추출 데이터
 const ALLERGEN_EXTRACT_DATA: AllergenData = {
@@ -176,10 +180,11 @@ const UPLOADER_OPTIONS = [
 // ===== Styled Components =====
 
 const PageContainer = styled.div`
-  min-height: 100vh;
+  height: 100vh;
   background: ${COLOR.BLUEGRAY10};
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 `;
 
 // ---- 고정 헤더 (검색창) ----
@@ -188,28 +193,45 @@ const FixedHeader = styled.div`
   top: 0;
   z-index: 100;
   background: ${COLOR.WHITE};
-  border-bottom: 1px solid ${COLOR.GRAY20};
-  padding: 16px 28px;
-`;
-
-const HeaderRow = styled.div`
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   gap: 16px;
 `;
 
+const HeaderRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 16px;
+`;
+
 const Logo = styled.div`
   font-size: 18px;
-  font-weight: 700;
-  color: ${COLOR.PRIMARY60};
+  font-weight: 600;
+  color: ${COLOR.GRAY90};
   white-space: nowrap;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 160px;
+`;
+
+const HeaderRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 `;
 
 // ---- 공통 페이지 영역 ----
 const PageWrapper = styled.div`
   padding: 24px 28px;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 `;
 
 const PageHeader = styled.div`
@@ -362,6 +384,24 @@ const NotificationBell = styled.button`
   }
 `;
 
+const HeaderButton = styled.button<{ $active?: boolean }>`
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: ${COLOR.GRAY10};
+  }
+`;
+
 const NotificationBadge = styled.span`
   position: absolute;
   top: -4px;
@@ -445,10 +485,107 @@ const NotificationIcon = styled.div<{ $type: string }>`
   }}
 `;
 
+// ---- 설정 드롭다운 ----
+const SettingsWrapper = styled.div`
+  position: relative;
+`;
+
+const SettingsDropdown = styled.div<{ $isOpen: boolean }>`
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 200px;
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  display: ${({ $isOpen }) => ($isOpen ? 'block' : 'none')};
+  overflow: hidden;
+`;
+
+const SettingsItem = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: ${COLOR.GRAY90};
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: ${COLOR.GRAY10};
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid ${COLOR.GRAY20};
+  }
+`;
+
+// ---- 알림 상세 화면 ----
+const NotificationDetail = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid ${COLOR.GRAY20};
+`;
+
+const NotificationDetailHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const NotificationDetailContent = styled.div`
+  padding: 16px;
+  background: ${COLOR.GRAY10};
+  border-radius: 8px;
+`;
+
+const NotificationBackButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: ${COLOR.PRIMARY60};
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 12px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const NotificationFooter = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 14px;
+  background: ${COLOR.GRAY10};
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.PRIMARY60};
+  cursor: pointer;
+
+  &:hover {
+    background: ${COLOR.GRAY20};
+  }
+`;
+
 // ---- 파일뷰 레이아웃 ----
 const FileLayout = styled.div`
   display: flex;
-  height: calc(100vh - 320px);
+  flex: 1;
+  min-height: 0;
   background: ${COLOR.WHITE};
   border-radius: 8px;
   border: 1px solid ${COLOR.GRAY30};
@@ -522,6 +659,7 @@ const FileMain = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 `;
 
 const FileToolbar = styled.div`
@@ -545,6 +683,85 @@ const ActionBar = styled.div<{ $visible?: boolean }>`
 const FileScroll = styled.div`
   flex: 1;
   overflow-y: auto;
+  padding-bottom: 80px;
+`;
+
+// 뷰 모드 토글 버튼
+const ViewModeToggle = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+`;
+
+const ViewModeButton = styled.button<{ $active?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid ${({ $active }) => $active ? COLOR.PRIMARY60 : COLOR.GRAY30};
+  border-radius: 6px;
+  background: ${({ $active }) => $active ? COLOR.PRIMARY10 : COLOR.WHITE};
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY60};
+    background: ${COLOR.PRIMARY10};
+  }
+`;
+
+// 그리드 뷰
+const FileGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  padding: 16px;
+`;
+
+const FileGridItem = styled.div<{ $selected?: boolean }>`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 12px 16px;
+  border: 1px solid ${({ $selected }) => $selected ? COLOR.PRIMARY60 : COLOR.GRAY30};
+  border-radius: 8px;
+  background: ${({ $selected }) => $selected ? COLOR.PRIMARY10 : COLOR.WHITE};
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: ${COLOR.PRIMARY60};
+    background: ${COLOR.PRIMARY10};
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+`;
+
+const FileGridIcon = styled.div`
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+`;
+
+const FileGridName = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.GRAY90};
+  text-align: center;
+  word-break: break-all;
+  line-height: 1.3;
+  max-height: 34px;
+  overflow: hidden;
+`;
+
+const FileGridMeta = styled.div`
+  font-size: 11px;
+  color: ${COLOR.GRAY60};
+  margin-top: 6px;
 `;
 
 const FileTableHeader = styled.div`
@@ -597,6 +814,59 @@ const FileActions = styled.div`
   gap: 4px;
   opacity: 0;
   transition: opacity 0.15s;
+`;
+
+// ---- 파일 액션바 ----
+const FileActionBar = styled.div<{ $isOpen: boolean }>`
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: ${({ $isOpen }) => ($isOpen ? 'flex' : 'none')};
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 12px;
+  padding: 12px 20px;
+  background: ${COLOR.WHITE};
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+`;
+
+const ActionBarDivider = styled.div`
+  width: 1px;
+  height: 24px;
+  background: ${COLOR.GRAY30};
+  margin: 0 8px;
+`;
+
+const ActionBarFileName = styled.span`
+  font-size: 13px;
+  font-weight: 500;
+  color: ${COLOR.GRAY90};
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const ActionBarCloseButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  margin-left: 8px;
+
+  &:hover {
+    background: ${COLOR.GRAY10};
+  }
 `;
 
 const ExtractBadge = styled.button<{ $status: 'completed' | 'failed' | 'none' | 'extracting' }>`
@@ -675,35 +945,34 @@ const TrashNotice = styled.div`
 
 // ---- 통합 검색 ----
 const GlobalSearchSection = styled.div`
-  flex: 1;
-  max-width: 680px;
+  position: relative;
+  width: 640px;
 `;
 
 const GlobalSearchRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
 `;
 
-const GlobalSearchInput = styled.input`
-  flex: 1;
-  height: 40px;
-  padding: 0 16px 0 40px;
-  border: 1px solid ${COLOR.GRAY30};
-  border-radius: 24px;
-  font-size: 14px;
+const GlobalSearchInput = styled.input<{ $isFocused?: boolean }>`
+  width: 100%;
+  height: 46px;
+  padding: 0 48px 0 48px;
+  border: none;
+  border-radius: ${({ $isFocused }) => $isFocused ? '24px 24px 0 0' : '24px'};
+  font-size: 15px;
   background: ${COLOR.BLUEGRAY10};
+  color: ${COLOR.GRAY100};
   outline: none;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 
-  &:focus {
-    border-color: ${COLOR.PRIMARY60};
+  ${({ $isFocused }) => $isFocused && `
     background: ${COLOR.WHITE};
-    box-shadow: 0 0 0 3px ${COLOR.PRIMARY10};
-  }
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  `}
 
   &::placeholder {
-    color: ${COLOR.GRAY50};
+    color: ${COLOR.GRAY60};
   }
 `;
 
@@ -714,25 +983,208 @@ const GlobalSearchInputWrapper = styled.div`
 
 const GlobalSearchIcon = styled.div`
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
+  display: flex;
+  align-items: center;
+`;
+
+const SearchFilterButton = styled.button`
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: ${COLOR.GRAY20};
+  }
 `;
 
 const SearchResultDropdown = styled.div<{ $isOpen: boolean }>`
   position: absolute;
-  top: calc(100% + 4px);
+  top: 100%;
   left: 0;
   right: 0;
-  max-height: 400px;
-  overflow-y: auto;
   background: ${COLOR.WHITE};
-  border: 1px solid ${COLOR.GRAY30};
-  border-radius: 8px;
+  border-radius: 0 0 24px 24px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 100;
   display: ${({ $isOpen }) => $isOpen ? 'block' : 'none'};
+  overflow: hidden;
+`;
+
+const SearchFilterContainer = styled.div`
+  padding: 12px 16px;
+  border-bottom: 1px solid ${COLOR.GRAY20};
+`;
+
+const SearchFilterRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+`;
+
+const SearchFilterLabel = styled.span`
+  font-size: 12px;
+  font-weight: 500;
+  color: ${COLOR.GRAY60};
+  margin-right: 4px;
+`;
+
+const SearchFilterDivider = styled.div`
+  width: 1px;
+  height: 20px;
+  background: ${COLOR.GRAY30};
+  margin: 0 8px;
+`;
+
+const SearchFilterChip = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 8px;
+  font-size: 13px;
+  color: ${COLOR.GRAY80};
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: ${COLOR.GRAY10};
+    border-color: ${COLOR.GRAY40};
+  }
+`;
+
+const SearchFilterSelect = styled.select`
+  padding: 6px 10px;
+  background: ${COLOR.WHITE};
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 8px;
+  font-size: 13px;
+  color: ${COLOR.GRAY80};
+  cursor: pointer;
+  outline: none;
+  min-width: 90px;
+
+  &:hover {
+    border-color: ${COLOR.GRAY40};
+  }
+
+  &:focus {
+    border-color: ${COLOR.PRIMARY60};
+  }
+`;
+
+const SearchDateFilter = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  input {
+    padding: 5px 8px;
+    border: 1px solid ${COLOR.GRAY30};
+    border-radius: 8px;
+    font-size: 12px;
+    color: ${COLOR.GRAY80};
+    width: 120px;
+    outline: none;
+
+    &:focus {
+      border-color: ${COLOR.PRIMARY60};
+    }
+  }
+
+  span {
+    color: ${COLOR.GRAY50};
+    font-size: 12px;
+  }
+`;
+
+const SearchFilterReset = styled.button`
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: ${COLOR.PRIMARY60};
+  cursor: pointer;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const SearchResultList = styled.div`
+  max-height: 280px;
+  overflow-y: auto;
+`;
+
+const SearchFooter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-top: 1px solid ${COLOR.GRAY20};
+`;
+
+const AllResultsButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: ${COLOR.GRAY60};
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    color: ${COLOR.GRAY80};
+  }
+`;
+
+const SearchResultSection = styled.div`
+  padding: 8px 0;
+`;
+
+const SearchResultSectionTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: ${COLOR.GRAY60};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;
+
+const SearchResultCount = styled.span`
+  font-weight: 400;
+  color: ${COLOR.GRAY50};
+`;
+
+const SearchEmptyState = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
 `;
 
 const SearchResultGroup = styled.div`
@@ -755,13 +1207,15 @@ const SearchResultGroupTitle = styled.div`
 const SearchResultItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
+  gap: 16px;
+  padding: 10px 20px;
   cursor: pointer;
+  font-size: 14px;
+  color: ${COLOR.GRAY80};
   transition: background 0.15s ease;
 
   &:hover {
-    background: ${COLOR.BLUEGRAY10};
+    background: ${COLOR.GRAY10};
   }
 `;
 
@@ -810,6 +1264,12 @@ const SearchHighlight = styled.mark`
   border-radius: 2px;
 `;
 
+const FilterPanel = styled.div`
+  background: ${COLOR.WHITE};
+  padding: 14px 28px;
+  border-bottom: 1px solid ${COLOR.GRAY20};
+`;
+
 const FilterChipsRow = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -839,12 +1299,96 @@ const EmptyFolderBadge = styled.span`
   margin-left: 6px;
 `;
 
-// ---- 필터 패널 ----
-const FilterPanel = styled.div<{ $isOpen?: boolean }>`
-  display: ${({ $isOpen }) => $isOpen ? 'block' : 'none'};
-  padding: 16px;
+const StarButton = styled.button<{ $starred?: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: ${({ $starred }) => $starred ? '#f5a623' : COLOR.GRAY40};
+
+  &:hover {
+    background: ${COLOR.GRAY10};
+    color: ${({ $starred }) => $starred ? '#f5a623' : COLOR.GRAY60};
+  }
+
+  svg {
+    fill: ${({ $starred }) => $starred ? '#f5a623' : 'none'};
+    stroke: ${({ $starred }) => $starred ? '#f5a623' : 'currentColor'};
+  }
+`;
+
+const SharedBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  background: ${COLOR.PRIMARY60};
+  margin-left: 6px;
+`;
+
+const SharedWithList = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const SharedAvatar = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: ${COLOR.PRIMARY10};
+  color: ${COLOR.PRIMARY60};
+  font-size: 10px;
+  font-weight: 500;
+  margin-left: -6px;
+
+  &:first-child {
+    margin-left: 0;
+  }
+`;
+
+const EmptyStateContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+`;
+
+const EmptyStateIcon = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
   background: ${COLOR.GRAY10};
-  border-bottom: 1px solid ${COLOR.GRAY30};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+`;
+
+const EmptyStateTitle = styled.div`
+  font-size: 16px;
+  font-weight: 600;
+  color: ${COLOR.GRAY90};
+  margin-bottom: 8px;
+`;
+
+const EmptyStateDesc = styled.div`
+  font-size: 13px;
+  color: ${COLOR.GRAY60};
 `;
 
 const FilterGrid = styled.div`
@@ -1417,9 +1961,24 @@ const UploadFolderPath = styled.div`
   }
 `;
 
+// ---- 파일 상세 헤더 ----
+const FileHeader = styled.div`
+  background: ${COLOR.WHITE};
+  padding: 20px 28px;
+  border-bottom: 1px solid ${COLOR.GRAY20};
+`;
+
+const FileHeaderTop = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+`;
+
 // ---- 담당자 정보 카드 ----
 const ManagerSection = styled.div`
   display: flex;
+  align-items: center;
   gap: 24px;
   padding: 20px 24px;
   background: ${COLOR.WHITE};
@@ -1842,10 +2401,27 @@ export default function DocsPage() {
   const [expandedPanels, setExpandedPanels] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [actionBarFileId, setActionBarFileId] = useState<string | null>(null);
   const [consultantFilter, setConsultantFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFolder, setSelectedFolder] = useState('견적서/의뢰서');
   const [activeNav, setActiveNav] = useState('all');
+
+  // 검색 영역 ref
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  // 검색 드롭다운 외부 클릭 감지
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // 파일 필터 상태
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -1853,6 +2429,7 @@ export default function DocsPage() {
   const [fileTypeFilter, setFileTypeFilter] = useState('all');
   const [uploaderFilter, setUploaderFilter] = useState('all');
   const [fileSizeFilter, setFileSizeFilter] = useState('all');
+  const [fileTagFilter, setFileTagFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -1878,6 +2455,17 @@ export default function DocsPage() {
     setSearchTags([]);
   };
 
+  // 즐겨찾기 상태
+  const [starredFiles, setStarredFiles] = useState<string[]>(['f1', '1', '4']);
+
+  const toggleStar = (fileId: string) => {
+    setStarredFiles(prev =>
+      prev.includes(fileId)
+        ? prev.filter(id => id !== fileId)
+        : [...prev, fileId]
+    );
+  };
+
   // 통합 검색 상태
   const [globalSearch, setGlobalSearch] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -1891,6 +2479,36 @@ export default function DocsPage() {
       regex.test(part) ? <SearchHighlight key={i}>{part}</SearchHighlight> : part
     );
   };
+
+  // 뷰 모드 (list/grid)
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+
+  // 폴더 구조 (mock) - 카테고리 > 차수 > 제품 > 서류분류 > 파일
+  const folderStructure = [
+    { id: 'root', name: selectedCompany?.nameKo || '회사', depth: 0, type: 'root' as const },
+    // 공통서류
+    { id: 'common', name: '공통서류', depth: 1, type: 'category' as const },
+    { id: 'common-1', name: '1차', depth: 2, type: 'round' as const, parent: 'common' },
+    { id: 'common-1-prodA', name: '제품A', depth: 3, type: 'product' as const, parent: 'common-1' },
+    { id: 'common-1-prodA-cert', name: '인증서류', depth: 4, type: 'docType' as const, parent: 'common-1-prodA' },
+    { id: 'common-2', name: '2차', depth: 2, type: 'round' as const, parent: 'common' },
+    // CMF
+    { id: 'cmf', name: 'CMF', depth: 1, type: 'category' as const },
+    { id: 'cmf-1', name: '1차', depth: 2, type: 'round' as const, parent: 'cmf' },
+    { id: 'cmf-1-prodB', name: '제품B', depth: 3, type: 'product' as const, parent: 'cmf-1' },
+    { id: 'cmf-1-prodB-cert', name: '인증서류', depth: 4, type: 'docType' as const, parent: 'cmf-1-prodB' },
+    { id: 'cmf-1-prodB-test', name: '시험성적서', depth: 4, type: 'docType' as const, parent: 'cmf-1-prodB' },
+    { id: 'cmf-2', name: '2차', depth: 2, type: 'round' as const, parent: 'cmf' },
+    { id: 'cmf-2-prodC', name: '제품C', depth: 3, type: 'product' as const, parent: 'cmf-2' },
+    // MoCERA+CPNP
+    { id: 'mocera', name: 'MoCERA+CPNP', depth: 1, type: 'category' as const },
+    { id: 'mocera-1', name: '1차', depth: 2, type: 'round' as const, parent: 'mocera' },
+    { id: 'mocera-2', name: '2차', depth: 2, type: 'round' as const, parent: 'mocera' },
+    // OTC
+    { id: 'otc', name: 'OTC', depth: 1, type: 'category' as const },
+    { id: 'otc-1', name: '1차', depth: 2, type: 'round' as const, parent: 'otc' },
+    { id: 'otc-2', name: '2차', depth: 2, type: 'round' as const, parent: 'otc' },
+  ];
 
   // 통합 검색 결과
   const globalSearchResults = globalSearch.trim() ? {
@@ -1919,9 +2537,7 @@ export default function DocsPage() {
   // 모달 상태
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [previewFile, setPreviewFile] = useState<FileData | null>(null);
   const [shareEmail, setShareEmail] = useState('');
   const [moveFolderTarget, setMoveFolderTarget] = useState<string | null>(null);
   const [uploadFolderTarget, setUploadFolderTarget] = useState('제품B');
@@ -1940,19 +2556,6 @@ export default function DocsPage() {
     { id: 'm2', name: '이매니저', email: 'lee@company.com', permission: 'view' },
   ]);
 
-  // 폴더 구조 (mock)
-  const folderStructure = [
-    { id: 'root', name: selectedCompany?.nameKo || '회사', depth: 0 },
-    { id: 'y25-1', name: '25년 1차', depth: 1 },
-    { id: 'product-a', name: '제품A', depth: 2 },
-    { id: 'product-b', name: '제품B', depth: 2 },
-    { id: 'y25-2', name: '25년 2차', depth: 1 },
-    { id: 'product-c', name: '제품C', depth: 2 },
-    { id: 'quotes', name: '견적서/의뢰서', depth: 1 },
-    { id: 'pif', name: 'PIF', depth: 1 },
-    { id: 'etc', name: '기타', depth: 1 },
-  ];
-
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // 파일 크기 파싱 (MB 단위로 변환)
@@ -1969,6 +2572,13 @@ export default function DocsPage() {
 
   // 파일 필터링 로직
   const filteredFiles = MOCK_FILES.filter(file => {
+    // activeNav 필터 (즐겨찾기, 공유 파일)
+    if (activeNav === 'starred' && !starredFiles.includes(file.id)) {
+      return false;
+    }
+    if (activeNav === 'shared' && !file.isShared) {
+      return false;
+    }
     // 파일명 검색
     if (fileNameSearch && !file.name.toLowerCase().includes(fileNameSearch.toLowerCase())) {
       return false;
@@ -1994,6 +2604,10 @@ export default function DocsPage() {
       const fileDate = file.date.replace(/\./g, '-');
       if (dateFrom && fileDate < dateFrom) return false;
       if (dateTo && fileDate > dateTo) return false;
+    }
+    // 파일 태그 필터
+    if (fileTagFilter !== 'all' && file.type !== 'folder') {
+      if (!file.tags || !file.tags.includes(fileTagFilter)) return false;
     }
     // 태그 기반 필터
     for (const tag of searchTags) {
@@ -2204,35 +2818,47 @@ export default function DocsPage() {
     { key: 'originalPath', title: '원래 위치', width: '200px', render: (_: unknown, r: FileData) => <FileMeta>{r.originalPath}</FileMeta> },
     { key: 'deletedAt', title: '삭제일', width: '100px', render: (_: unknown, r: FileData) => <FileMeta>{r.deletedAt}</FileMeta> },
     { key: 'expiresAt', title: '만료일', width: '150px', render: (_: unknown, r: FileData) => <span style={{ fontSize: 12, color: COLOR.RED60 }}>{r.expiresAt}</span> },
-    { key: 'actions', title: '액션', width: '180px', render: () => (
-      <div style={{ display: 'flex', gap: 8 }}>
-        <AppTextButton variant="SECONDARY" size="SMALL">복원</AppTextButton>
-        <AppTextButton variant="DANGER" size="SMALL">영구 삭제</AppTextButton>
-      </div>
-    )},
+    {
+      key: 'actions', title: '액션', width: '180px', render: () => (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <AppTextButton variant="SECONDARY" size="SMALL">복원</AppTextButton>
+          <AppTextButton variant="DANGER" size="SMALL">영구 삭제</AppTextButton>
+        </div>
+      )
+    },
   ];
 
   // 상세 정보 테이블 (files 화면 하단)
   const inputInfoColumns = [
-    { key: 'no', title: 'No.', width: '50px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
-      <span style={{ fontSize: 13, color: COLOR.GRAY70 }}>{r.no}</span>
-    )},
-    { key: 'name', title: '입력 정보', width: '300px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; isLink?: boolean; person?: string; date?: string }) => (
-      r.isLink
-        ? <span style={{ fontSize: 13, color: COLOR.PRIMARY60, cursor: 'pointer', textDecoration: 'underline' }}>{r.name}</span>
-        : <span style={{ fontSize: 13, color: COLOR.GRAY90 }}>{r.name}</span>
-    )},
-    { key: 'status', title: '처리 현황', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => {
-      if (r.status === '입력 완료') return <span style={{ fontSize: 13, color: COLOR.GRAY80 }}>입력 완료</span>;
-      if (r.status === '필수 입력') return <StatusBadge $variant="incomplete">필수 입력</StatusBadge>;
-      return <span style={{ fontSize: 13, color: COLOR.GRAY60 }}>선택 입력</span>;
-    }},
-    { key: 'person', title: '최근 입력자명', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
-      <span style={{ fontSize: 13, color: COLOR.GRAY80 }}>{r.person || ''}</span>
-    )},
-    { key: 'date', title: '입력일', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
-      <span style={{ fontSize: 13, color: COLOR.GRAY70 }}>{r.date || ''}</span>
-    )},
+    {
+      key: 'no', title: 'No.', width: '50px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
+        <span style={{ fontSize: 13, color: COLOR.GRAY70 }}>{r.no}</span>
+      )
+    },
+    {
+      key: 'name', title: '입력 정보', width: '300px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; isLink?: boolean; person?: string; date?: string }) => (
+        r.isLink
+          ? <span style={{ fontSize: 13, color: COLOR.PRIMARY60, cursor: 'pointer', textDecoration: 'underline' }}>{r.name}</span>
+          : <span style={{ fontSize: 13, color: COLOR.GRAY90 }}>{r.name}</span>
+      )
+    },
+    {
+      key: 'status', title: '처리 현황', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => {
+        if (r.status === '입력 완료') return <span style={{ fontSize: 13, color: COLOR.GRAY80 }}>입력 완료</span>;
+        if (r.status === '필수 입력') return <StatusBadge $variant="incomplete">필수 입력</StatusBadge>;
+        return <span style={{ fontSize: 13, color: COLOR.GRAY60 }}>선택 입력</span>;
+      }
+    },
+    {
+      key: 'person', title: '최근 입력자명', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
+        <span style={{ fontSize: 13, color: COLOR.GRAY80 }}>{r.person || ''}</span>
+      )
+    },
+    {
+      key: 'date', title: '입력일', width: '110px', render: (_: unknown, r: { no: number; name: string; status: string; required: boolean; person?: string; date?: string }) => (
+        <span style={{ fontSize: 13, color: COLOR.GRAY70 }}>{r.date || ''}</span>
+      )
+    },
   ];
 
   const renderContent = () => {
@@ -2251,7 +2877,7 @@ export default function DocsPage() {
             </PageHeader>
 
             <TableCard>
-              <AppTable<Company> columns={companyColumns} data={filteredCompanies} rowKey="id" />
+              <AppTable<Company> columns={companyColumns} data={filteredCompanies} rowKey="id" onRowClick={handleCompanyClick} />
             </TableCard>
 
             <PaginationWrapper>
@@ -2264,39 +2890,21 @@ export default function DocsPage() {
         return (
           <PageWrapper>
             <PageHeader>
-              <AppBreadcrumb items={[
-                { label: '홈', onClick: () => {} },
-                { label: '파일 관리 시스템', onClick: () => { setCurrentView('companies'); setSelectedCompany(null); } },
-                { label: selectedCompany?.nameKo || '' },
-              ]} />
-              <PageTitleRow style={{ marginTop: 12 }}>
+              <PageTitleRow>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }} />
                   <PageTitle style={{ fontSize: 20 }}>{selectedCompany?.nameKo}</PageTitle>
+                  <span style={{ marginLeft: 16, fontSize: 13, color: COLOR.GRAY70 }}>
+                    컨설턴트: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.consultant}</span>
+                    <span style={{ margin: '0 8px', color: COLOR.GRAY40 }}>|</span>
+                    서류 담당: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.documentManager}</span>
+                    <span style={{ margin: '0 8px', color: COLOR.GRAY40 }}>|</span>
+                    품질 담당: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.qualityManager}</span>
+                  </span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setCurrentView('permissions')}>권한 관리</AppTextButton>
-                  <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
-                </div>
+                <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
               </PageTitleRow>
             </PageHeader>
-
-            <ManagerSection>
-              <ManagerItem>
-                <ManagerLabel>컨설턴트</ManagerLabel>
-                <ManagerValue>{selectedCompany?.consultant}</ManagerValue>
-              </ManagerItem>
-              <ManagerDivider />
-              <ManagerItem>
-                <ManagerLabel>서류 담당</ManagerLabel>
-                <ManagerValue>{selectedCompany?.documentManager}</ManagerValue>
-              </ManagerItem>
-              <ManagerDivider />
-              <ManagerItem>
-                <ManagerLabel>품질 담당</ManagerLabel>
-                <ManagerValue>{selectedCompany?.qualityManager}</ManagerValue>
-              </ManagerItem>
-            </ManagerSection>
 
             <FileLayout>
               <Sidebar>
@@ -2305,149 +2913,65 @@ export default function DocsPage() {
                 </SidebarSection>
                 <NavItem $active={activeNav === 'all'} onClick={() => setActiveNav('all')}><AppIcon name="folder" size={16} fillColor={activeNav === 'all' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 전체 파일</NavItem>
                 <NavItem $active={activeNav === 'shared'} onClick={() => setActiveNav('shared')}><AppIcon name="share" size={16} fillColor={activeNav === 'shared' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 공유 파일</NavItem>
-                <NavItem $active={activeNav === 'starred'} onClick={() => setActiveNav('starred')}><AppIcon name="check" size={16} fillColor={activeNav === 'starred' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 즐겨찾기</NavItem>
+                <NavItem $active={activeNav === 'starred'} onClick={() => setActiveNav('starred')}><AppIcon name="star" size={16} fillColor={activeNav === 'starred' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 즐겨찾기</NavItem>
                 <NavItem $active={activeNav === 'recent'} onClick={() => setActiveNav('recent')}><AppIcon name="file" size={16} fillColor={activeNav === 'recent' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 최근 파일</NavItem>
                 <SidebarTitle>폴더 구조</SidebarTitle>
                 <FolderItem $active><AppIcon name="folder" size={14} fillColor="ICON_PRIMARY" /> {selectedCompany?.nameKo}</FolderItem>
-                <FolderItem $depth={1}><AppIcon name="folderOpen" size={14} fillColor="ICON_NEUTRAL" /> 25년 1차</FolderItem>
-                <FolderItem $depth={2} style={{ color: COLOR.PRIMARY60 }}><AppIcon name="file" size={14} fillColor="ICON_PRIMARY" /> 제품B</FolderItem>
-                <FolderItem $depth={1}><AppIcon name="folderOpen" size={14} fillColor="ICON_NEUTRAL" /> 25년 2차</FolderItem>
+                {/* 공통서류 */}
+                <FolderItem $depth={1}><AppIcon name="folderOpen" size={14} fillColor="ICON_NEUTRAL" /> 공통서류</FolderItem>
+                <FolderItem $depth={2}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> 1차</FolderItem>
+                <FolderItem $depth={2}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> 2차</FolderItem>
+                {/* CMF */}
+                <FolderItem $depth={1}><AppIcon name="folderOpen" size={14} fillColor="ICON_NEUTRAL" /> CMF</FolderItem>
+                <FolderItem $depth={2} style={{ color: COLOR.PRIMARY60 }}><AppIcon name="folderOpen" size={14} fillColor="ICON_PRIMARY" /> 1차</FolderItem>
+                <FolderItem $depth={3}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> 제품B</FolderItem>
+                <FolderItem $depth={2}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> 2차</FolderItem>
+                {/* MoCERA+CPNP */}
+                <FolderItem $depth={1}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> MoCERA+CPNP</FolderItem>
+                {/* OTC */}
+                <FolderItem $depth={1}><AppIcon name="folder" size={14} fillColor="ICON_NEUTRAL" /> OTC</FolderItem>
                 <div style={{ borderTop: `1px solid ${COLOR.GRAY30}`, margin: '12px 0' }} />
                 <NavItem onClick={() => setCurrentView('trash')} style={{ color: COLOR.GRAY60 }}><AppIcon name="trash" size={16} fillColor="ICON_ASSISTIVE" /> 휴지통</NavItem>
               </Sidebar>
               <FileMain>
-                <ActionBar $visible={selectedFiles.length > 0}>
-                  <AppTypography variant="BODY2_500" color="TEXT_PRIMARY">{selectedFiles.length}개 선택됨</AppTypography>
-                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="extract" size={14} />}>Certicos 추출</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="download" size={14} />}>다운로드</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="share" size={14} />} onClick={() => setIsShareModalOpen(true)}>공유</AppTextButton>
-                  <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="folder" size={14} />} onClick={() => setIsMoveModalOpen(true)}>이동</AppTextButton>
-                  <AppTextButton variant="DANGER" size="SMALL" prefixIcon={<AppIcon name="trash" size={14} />}>삭제</AppTextButton>
-                  <div style={{ marginLeft: 'auto' }}>
-                    <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="close" size={14} />} onClick={() => setSelectedFiles([])}>해제</AppTextButton>
-                  </div>
-                </ActionBar>
-                <FileToolbar style={{ display: selectedFiles.length > 0 ? 'none' : 'flex' }}>
+                <FileToolbar>
                   <AppBreadcrumb items={[
-                    { label: selectedCompany?.nameKo || '', onClick: () => {} },
-                    { label: '25년 1차', onClick: () => {} },
+                    { label: selectedCompany?.nameKo || '', onClick: () => { } },
+                    { label: 'CMF', onClick: () => { } },
+                    { label: '1차', onClick: () => { } },
                     { label: '제품B' },
                   ]} />
+                  <ViewModeToggle>
+                    <ViewModeButton $active={viewMode === 'list'} onClick={() => setViewMode('list')} title="목록 보기">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M2 4h12M2 8h12M2 12h12" stroke={viewMode === 'list' ? COLOR.PRIMARY60 : COLOR.GRAY60} strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                    </ViewModeButton>
+                    <ViewModeButton $active={viewMode === 'grid'} onClick={() => setViewMode('grid')} title="그리드 보기">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <rect x="2" y="2" width="5" height="5" rx="1" stroke={viewMode === 'grid' ? COLOR.PRIMARY60 : COLOR.GRAY60} strokeWidth="1.5"/>
+                        <rect x="9" y="2" width="5" height="5" rx="1" stroke={viewMode === 'grid' ? COLOR.PRIMARY60 : COLOR.GRAY60} strokeWidth="1.5"/>
+                        <rect x="2" y="9" width="5" height="5" rx="1" stroke={viewMode === 'grid' ? COLOR.PRIMARY60 : COLOR.GRAY60} strokeWidth="1.5"/>
+                        <rect x="9" y="9" width="5" height="5" rx="1" stroke={viewMode === 'grid' ? COLOR.PRIMARY60 : COLOR.GRAY60} strokeWidth="1.5"/>
+                      </svg>
+                    </ViewModeButton>
+                  </ViewModeToggle>
                 </FileToolbar>
-                <SearchBar>
-                  <AppSearchInput
-                    placeholder="파일명으로 검색"
-                    width={280}
-                    value={fileNameSearch}
-                    onChange={setFileNameSearch}
-                  />
-                  <AppTextButton
-                    variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
-                    size="SMALL"
-                    prefixIcon={<AppIcon name="filter" size={14} />}
-                    onClick={() => setIsFilterOpen(!isFilterOpen)}
-                  >
-                    상세 필터
-                  </AppTextButton>
-                  {(fileTypeFilter !== 'all' || uploaderFilter !== 'all' || fileSizeFilter !== 'all' || dateFrom || dateTo || searchTags.length > 0) && (
-                    <span style={{ fontSize: 12, color: COLOR.PRIMARY60 }}>{searchTags.length + (fileTypeFilter !== 'all' ? 1 : 0) + (uploaderFilter !== 'all' ? 1 : 0)}개 필터</span>
-                  )}
-                </SearchBar>
-                {(searchTags.length > 0 || isFilterOpen) && (
-                  <TagSearchArea>
-                    {searchTags.map(tag => (
-                      <TagChip key={tag.id} $type={tag.type}>
-                        <TagLabel>{tag.label}:</TagLabel>
-                        {tag.value}
-                        <TagChipClose onClick={() => removeSearchTag(tag.id)}>
-                          <AppIcon name="close" size={10} fillColor="ICON_NEUTRAL" />
-                        </TagChipClose>
-                      </TagChip>
-                    ))}
-                    <QuickTagGroup>
-                      <QuickTagBtn onClick={() => addSearchTag({ type: 'company', label: '회사', value: selectedCompany?.nameKo || '' })}>
-                        + 회사
-                      </QuickTagBtn>
-                      <QuickTagBtn onClick={() => addSearchTag({ type: 'uploader', label: '업로더', value: '김담당' })}>
-                        + 업로더
-                      </QuickTagBtn>
-                      <QuickTagBtn onClick={() => addSearchTag({ type: 'type', label: '타입', value: 'PDF' })}>
-                        + PDF
-                      </QuickTagBtn>
-                      <QuickTagBtn onClick={() => addSearchTag({ type: 'status', label: '상태', value: '추출완료' })}>
-                        + 추출완료
-                      </QuickTagBtn>
-                      {searchTags.length > 0 && (
-                        <QuickTagBtn onClick={clearAllTags} style={{ color: COLOR.RED60, borderColor: COLOR.RED60 }}>
-                          전체 해제
-                        </QuickTagBtn>
-                      )}
-                    </QuickTagGroup>
-                  </TagSearchArea>
-                )}
-                <FilterPanel $isOpen={isFilterOpen}>
-                  <FilterGrid>
-                    <FilterGroup>
-                      <FilterLabel>파일 타입</FilterLabel>
-                      <AppSelect
-                        placeholder="파일 타입"
-                        width={180}
-                        value={fileTypeFilter}
-                        onChange={(v) => setFileTypeFilter(String(v))}
-                        options={FILE_TYPE_OPTIONS}
-                      />
-                    </FilterGroup>
-                    <FilterGroup>
-                      <FilterLabel>업로더</FilterLabel>
-                      <AppSelect
-                        placeholder="업로더"
-                        width={180}
-                        value={uploaderFilter}
-                        onChange={(v) => setUploaderFilter(String(v))}
-                        options={UPLOADER_OPTIONS}
-                      />
-                    </FilterGroup>
-                    <FilterGroup>
-                      <FilterLabel>파일 크기</FilterLabel>
-                      <AppSelect
-                        placeholder="파일 크기"
-                        width={180}
-                        value={fileSizeFilter}
-                        onChange={(v) => setFileSizeFilter(String(v))}
-                        options={FILE_SIZE_OPTIONS}
-                      />
-                    </FilterGroup>
-                    <FilterGroup>
-                      <FilterLabel>업로드 날짜 (시작)</FilterLabel>
-                      <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                    </FilterGroup>
-                    <FilterGroup>
-                      <FilterLabel>업로드 날짜 (종료)</FilterLabel>
-                      <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                    </FilterGroup>
-                  </FilterGrid>
-                  <FilterActions>
-                    <AppTextButton variant="SECONDARY" size="SMALL" onClick={resetFilters}>초기화</AppTextButton>
-                    <AppTextButton variant="PRIMARY" size="SMALL" onClick={() => setIsFilterOpen(false)}>닫기</AppTextButton>
-                  </FilterActions>
-                </FilterPanel>
-                <DragHint>
-                  <AppIcon name="upload" size={14} fillColor="ICON_ASSISTIVE" />
-                  파일을 이 영역에 드래그하여 바로 업로드할 수 있습니다
-                </DragHint>
                 <FileScroll
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <FileTableHeader>
-                    <span><Checkbox onChange={(e) => toggleAllFiles(e.target.checked)} /></span>
-                    <span>이름</span>
-                    <span>크기</span>
-                    <span>수정일</span>
-                    <span>Certicos</span>
-                    <span>액션</span>
-                  </FileTableHeader>
+                  {viewMode === 'list' && (
+                    <FileTableHeader>
+                      <span><Checkbox onChange={(e) => toggleAllFiles(e.target.checked)} /></span>
+                      <span>이름</span>
+                      <span>크기</span>
+                      <span>수정일</span>
+                      <span>Certicos</span>
+                      <span>액션</span>
+                    </FileTableHeader>
+                  )}
                   {isDragging && (
                     <DropZone $isDragging={isDragging} style={{ margin: '16px' }}>
                       <DropZoneIcon><AppIcon name="upload" size={40} fillColor="ICON_PRIMARY" /></DropZoneIcon>
@@ -2470,15 +2994,103 @@ export default function DocsPage() {
                       ))}
                     </UploadProgress>
                   )}
-                  {filteredFiles.map(file => (
+                  {filteredFiles.length === 0 && (
+                    <EmptyStateContainer>
+                      {activeNav === 'starred' && (
+                        <>
+                          <AppIcon name="star" size={48} fillColor="ICON_DISABLED" />
+                          <AppTypography variant="BODY1_500" color="TEXT_NEUTRAL" style={{ marginTop: 16 }}>
+                            즐겨찾기한 파일이 없습니다
+                          </AppTypography>
+                          <AppTypography variant="BODY2_400" color="TEXT_ASSISTIVE" style={{ marginTop: 8 }}>
+                            파일 옆의 ★ 아이콘을 클릭하여 즐겨찾기에 추가하세요
+                          </AppTypography>
+                        </>
+                      )}
+                      {activeNav === 'shared' && (
+                        <>
+                          <AppIcon name="share" size={48} fillColor="ICON_DISABLED" />
+                          <AppTypography variant="BODY1_500" color="TEXT_NEUTRAL" style={{ marginTop: 16 }}>
+                            공유된 파일이 없습니다
+                          </AppTypography>
+                          <AppTypography variant="BODY2_400" color="TEXT_ASSISTIVE" style={{ marginTop: 8 }}>
+                            파일을 공유하면 여기에 표시됩니다
+                          </AppTypography>
+                        </>
+                      )}
+                      {activeNav === 'all' && (
+                        <>
+                          <AppIcon name="folder" size={48} fillColor="ICON_DISABLED" />
+                          <AppTypography variant="BODY1_500" color="TEXT_NEUTRAL" style={{ marginTop: 16 }}>
+                            검색 결과가 없습니다
+                          </AppTypography>
+                          <AppTypography variant="BODY2_400" color="TEXT_ASSISTIVE" style={{ marginTop: 8 }}>
+                            다른 검색어로 다시 시도해보세요
+                          </AppTypography>
+                        </>
+                      )}
+                      {activeNav === 'recent' && (
+                        <>
+                          <AppIcon name="file" size={48} fillColor="ICON_DISABLED" />
+                          <AppTypography variant="BODY1_500" color="TEXT_NEUTRAL" style={{ marginTop: 16 }}>
+                            최근 파일이 없습니다
+                          </AppTypography>
+                          <AppTypography variant="BODY2_400" color="TEXT_ASSISTIVE" style={{ marginTop: 8 }}>
+                            최근에 열거나 수정한 파일이 여기에 표시됩니다
+                          </AppTypography>
+                        </>
+                      )}
+                    </EmptyStateContainer>
+                  )}
+                  {/* 그리드 뷰 */}
+                  {viewMode === 'grid' && (
+                    <FileGrid>
+                      {filteredFiles.map(file => (
+                        <FileGridItem
+                          key={file.id}
+                          $selected={selectedFiles.includes(file.id)}
+                          title={file.name}
+                        >
+                          <div style={{ position: 'absolute', top: 8, left: 8 }}>
+                            <Checkbox
+                              checked={selectedFiles.includes(file.id)}
+                              onChange={() => toggleFileSelection(file.id)}
+                              disabled={file.type === 'folder'}
+                            />
+                          </div>
+                          <FileGridIcon>
+                            {file.type === 'folder' ? (
+                              <AppIcon name="folder" size={40} fillColor="ICON_PRIMARY" />
+                            ) : file.type === 'pdf' ? (
+                              <svg width="40" height="40" viewBox="0 0 24 24" fill="#E53935"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9h-2v1h2v2H9v-4h4v1zm-2 5h2v-1h-2v-2h4v4H9v-1h2zm6-7V3.5L18.5 9H17z"/></svg>
+                            ) : file.type === 'xlsx' ? (
+                              <svg width="40" height="40" viewBox="0 0 24 24" fill="#43A047"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 9l2 3h-1.5l-1.25-2-1.25 2H9.5l2-3-2-3h1.5l1.25 2 1.25-2H15l-2 3zm3-4V3.5L18.5 9H16z"/></svg>
+                            ) : (
+                              <AppIcon name="file" size={40} fillColor="ICON_NEUTRAL" />
+                            )}
+                          </FileGridIcon>
+                          <FileGridName>{file.name}</FileGridName>
+                          <FileGridMeta>{file.size} · {file.date}</FileGridMeta>
+                        </FileGridItem>
+                      ))}
+                    </FileGrid>
+                  )}
+                  {/* 리스트 뷰 */}
+                  {viewMode === 'list' && filteredFiles.map(file => (
                     <React.Fragment key={file.id}>
                       <FileRow
                         $selected={selectedFiles.includes(file.id)}
-                        onClick={() => file.type !== 'folder' && toggleFileSelection(file.id)}
-                        onDoubleClick={() => { if (file.type !== 'folder') { setPreviewFile(file); setIsPreviewOpen(true); } }}
+                        onDoubleClick={() => { if (file.type !== 'folder' && file.extractStatus && file.extractStatus !== 'none') { togglePanel(file.id); } }}
                       >
                         <Checkbox checked={selectedFiles.includes(file.id)} onChange={() => toggleFileSelection(file.id)} onClick={(e) => e.stopPropagation()} disabled={file.type === 'folder'} />
                         <FileName>
+                          <StarButton
+                            $starred={starredFiles.includes(file.id)}
+                            onClick={(e) => { e.stopPropagation(); toggleStar(file.id); }}
+                            title={starredFiles.includes(file.id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                          >
+                            ★
+                          </StarButton>
                           {getFileIcon(file.type)} {file.name}
                           {file.type === 'folder' && file.isEmpty && (
                             <EmptyFolderBadge title="빈 폴더">
@@ -2498,41 +3110,109 @@ export default function DocsPage() {
                           )}
                         </div>
                         <FileActions className="file-actions">
-                          <AppIconButton icon="eye" size="SMALL" onClick={(e) => { e.stopPropagation(); if (file.type !== 'folder') { setPreviewFile(file); setIsPreviewOpen(true); } }} />
-                          <AppIconButton icon="download" size="SMALL" onClick={(e) => e.stopPropagation()} />
-                          <AppIconButton icon="share" size="SMALL" onClick={(e) => { e.stopPropagation(); setSelectedFiles([file.id]); setIsShareModalOpen(true); }} />
-                          <AppIconButton icon="folder" size="SMALL" onClick={(e) => { e.stopPropagation(); setSelectedFiles([file.id]); setIsMoveModalOpen(true); }} />
+                          <AppIconButton icon="eye" size="SMALL" title="미리보기" onClick={(e) => { e.stopPropagation(); if (file.type !== 'folder') { window.open(`/preview/${file.id}`, '_blank'); } }} />
+                          <AppIconButton icon="download" size="SMALL" title="다운로드" onClick={(e) => e.stopPropagation()} />
+                          <AppIconButton icon="share" size="SMALL" title="공유" onClick={(e) => { e.stopPropagation(); setSelectedFiles([file.id]); setIsShareModalOpen(true); }} />
+                          <AppIconButton icon="folder" size="SMALL" title="이동" onClick={(e) => { e.stopPropagation(); setSelectedFiles([file.id]); setIsMoveModalOpen(true); }} />
                         </FileActions>
                       </FileRow>
-                      {file.extractStatus === 'completed' && file.extractData && (
+                      {file.type !== 'folder' && file.extractStatus && file.extractStatus !== 'none' && (
                         <ExtractPanel $visible={expandedPanels.includes(file.id)}>
-                          <ExtractGrid>
-                            <ExtractField><ExtractLabel>제품명</ExtractLabel><ExtractValue>{file.extractData.productName}</ExtractValue></ExtractField>
-                            <ExtractField><ExtractLabel>고객사</ExtractLabel><ExtractValue>{file.extractData.customer}</ExtractValue></ExtractField>
-                            <ExtractField><ExtractLabel>견적 금액</ExtractLabel><ExtractValue>{file.extractData.amount}</ExtractValue></ExtractField>
-                            <ExtractField><ExtractLabel>견적 일자</ExtractLabel><ExtractValue>{file.extractData.date}</ExtractValue></ExtractField>
-                            <ExtractField><ExtractLabel>담당 컨설턴트</ExtractLabel><ExtractValue>{file.extractData.consultant}</ExtractValue></ExtractField>
-                          </ExtractGrid>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <AppTextButton variant="SECONDARY" size="SMALL">Certicos에서 확인 →</AppTextButton>
-                            <span style={{ fontSize: 11, color: COLOR.GRAY60, marginLeft: 'auto' }}>잘못된 내용은 Certicos에서 수정</span>
-                          </div>
-                        </ExtractPanel>
-                      )}
-                      {file.extractStatus === 'failed' && (
-                        <ExtractPanel $visible={expandedPanels.includes(file.id)} $failed>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div>
-                              <div style={{ fontSize: 13, color: COLOR.RED60, fontWeight: 500 }}>파일 형식이 지원되지 않거나 내용을 읽을 수 없습니다.</div>
-                              <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 2 }}>오류 코드: EXT-401</div>
+                          {/* Certicos 추출 결과 */}
+                          {file.extractStatus === 'completed' && file.extractData && !file.name.includes('ALLERGEN') && (
+                            <ExtractGrid>
+                              <ExtractField><ExtractLabel>제품명</ExtractLabel><ExtractValue>{file.extractData.productName}</ExtractValue></ExtractField>
+                              <ExtractField><ExtractLabel>고객사</ExtractLabel><ExtractValue>{file.extractData.customer}</ExtractValue></ExtractField>
+                              {file.extractData.amount && <ExtractField><ExtractLabel>견적 금액</ExtractLabel><ExtractValue>{file.extractData.amount}</ExtractValue></ExtractField>}
+                              <ExtractField><ExtractLabel>견적 일자</ExtractLabel><ExtractValue>{file.extractData.date}</ExtractValue></ExtractField>
+                              {file.extractData.consultant && <ExtractField><ExtractLabel>담당 컨설턴트</ExtractLabel><ExtractValue>{file.extractData.consultant}</ExtractValue></ExtractField>}
+                            </ExtractGrid>
+                          )}
+
+                          {/* 알러젠 추출 결과 */}
+                          {file.extractStatus === 'completed' && file.name.includes('ALLERGEN') && (
+                            <>
+                              <ExtractGrid>
+                                <ExtractField><ExtractLabel>향료명</ExtractLabel><ExtractValue>{ALLERGEN_EXTRACT_DATA.fragranceName}</ExtractValue></ExtractField>
+                                <ExtractField><ExtractLabel>공급사</ExtractLabel><ExtractValue>{ALLERGEN_EXTRACT_DATA.vendor}</ExtractValue></ExtractField>
+                                <ExtractField><ExtractLabel>알러젠 타입</ExtractLabel><ExtractValue>Type {ALLERGEN_EXTRACT_DATA.allergenType}</ExtractValue></ExtractField>
+                              </ExtractGrid>
+                              <div style={{ marginTop: 12 }}>
+                                <div style={{ fontSize: 11, fontWeight: 600, color: COLOR.GRAY60, marginBottom: 8 }}>
+                                  알러젠 리스트 ({Object.keys(ALLERGEN_EXTRACT_DATA.allergenList).length}개)
+                                </div>
+                                <AllergenTable>
+                                  <AllergenHeader>
+                                    <span>성분명</span>
+                                    <span style={{ textAlign: 'right' }}>함량 (%)</span>
+                                  </AllergenHeader>
+                                  {Object.entries(ALLERGEN_EXTRACT_DATA.allergenList).map(([name, value]) => (
+                                    <AllergenRow key={name}>
+                                      <AllergenName>{name}</AllergenName>
+                                      <AllergenValue>{value}</AllergenValue>
+                                    </AllergenRow>
+                                  ))}
+                                </AllergenTable>
+                              </div>
+                            </>
+                          )}
+
+                          {/* 추출 실패 */}
+                          {file.extractStatus === 'failed' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div>
+                                <div style={{ fontSize: 13, color: COLOR.RED60, fontWeight: 500 }}>파일 형식이 지원되지 않거나 내용을 읽을 수 없습니다.</div>
+                                <div style={{ fontSize: 11, color: COLOR.GRAY50, marginTop: 2 }}>오류 코드: EXT-401</div>
+                              </div>
+                              <AppTextButton variant="SECONDARY" size="SMALL" style={{ marginLeft: 'auto' }} prefixIcon={<AppIcon name="restore" size={14} />}>다시 추출</AppTextButton>
                             </div>
-                            <AppTextButton variant="SECONDARY" size="SMALL" style={{ marginLeft: 'auto' }} prefixIcon={<AppIcon name="restore" size={14} />}>다시 추출</AppTextButton>
-                          </div>
+                          )}
+
+                          {/* 하단 액션 */}
+                          {file.extractStatus === 'completed' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${COLOR.GRAY20}` }}>
+                              <AppTextButton variant="SECONDARY" size="SMALL">Certicos에서 확인 →</AppTextButton>
+                              <span style={{ fontSize: 11, color: COLOR.GRAY50, marginLeft: 'auto' }}>잘못된 내용은 Certicos에서 수정</span>
+                            </div>
+                          )}
                         </ExtractPanel>
                       )}
                     </React.Fragment>
                   ))}
                 </FileScroll>
+                {/* 파일 액션바 - 플로팅 */}
+                <FileActionBar $isOpen={selectedFiles.length > 0}>
+                  {selectedFiles.length > 0 && (
+                    <>
+                      <ActionBarFileName>
+                        {selectedFiles.length === 1
+                          ? filteredFiles.find(f => f.id === selectedFiles[0])?.name
+                          : `${selectedFiles.length}개 파일 선택됨`}
+                      </ActionBarFileName>
+                      <ActionBarDivider />
+                      {selectedFiles.length === 1 && (
+                        <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="eye" size={14} />} onClick={() => window.open(`/preview/${selectedFiles[0]}`, '_blank')}>
+                          미리보기
+                        </AppTextButton>
+                      )}
+                      <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="download" size={14} />}>
+                        다운로드
+                      </AppTextButton>
+                      <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="share" size={14} />} onClick={() => setIsShareModalOpen(true)}>
+                        공유
+                      </AppTextButton>
+                      <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="folder" size={14} />} onClick={() => setIsMoveModalOpen(true)}>
+                        이동
+                      </AppTextButton>
+                      <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="trash" size={14} />}>
+                        삭제
+                      </AppTextButton>
+                      <ActionBarCloseButton onClick={() => setSelectedFiles([])}>
+                        <AppIcon name="close" size={16} fillColor="ICON_NEUTRAL" />
+                      </ActionBarCloseButton>
+                    </>
+                  )}
+                </FileActionBar>
               </FileMain>
             </FileLayout>
           </PageWrapper>
@@ -2542,8 +3222,7 @@ export default function DocsPage() {
         return (
           <PageWrapper>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템', onClick: () => setCurrentView('companies') }, { label: '휴지통' }]} />
-              <PageTitleRow style={{ marginTop: 8 }}>
+              <PageTitleRow>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView(selectedCompany ? 'files' : 'companies')} />
                   <PageTitle style={{ fontSize: 20 }}>휴지통</PageTitle>
@@ -2562,8 +3241,7 @@ export default function DocsPage() {
         return (
           <PageWrapper>
             <PageHeader>
-              <AppBreadcrumb items={[{ label: '홈', onClick: () => {} }, { label: '파일 관리 시스템', onClick: () => setCurrentView('companies') }, { label: '권한 관리' }]} />
-              <PageTitleRow style={{ marginTop: 8 }}>
+              <PageTitleRow>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView('files')} />
                   <PageTitle style={{ fontSize: 20 }}>폴더별 권한 관리</PageTitle>
@@ -2620,6 +3298,43 @@ export default function DocsPage() {
           </PageWrapper>
         );
 
+      case 'notifications':
+        return (
+          <PageWrapper>
+            <PageHeader>
+              <PageTitleRow>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView(selectedCompany ? 'files' : 'companies')} />
+                  <PageTitle style={{ fontSize: 20 }}>알림</PageTitle>
+                </div>
+                <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))}>모두 읽음 처리</AppTextButton>
+              </PageTitleRow>
+            </PageHeader>
+            <div style={{ background: COLOR.WHITE, borderRadius: 8, border: `1px solid ${COLOR.GRAY30}`, overflow: 'hidden' }}>
+              {notifications.map(n => (
+                <div key={n.id} style={{ display: 'flex', gap: 16, padding: 20, borderBottom: `1px solid ${COLOR.GRAY20}`, background: n.isRead ? COLOR.WHITE : COLOR.PRIMARY10, cursor: 'pointer' }} onClick={() => setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, isRead: true } : notif))}>
+                  <NotificationIcon $type={n.type}>{getNotifIcon(n.type)}</NotificationIcon>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: n.isRead ? 400 : 600, marginBottom: 6 }}>{n.title}</div>
+                    <div style={{ fontSize: 14, color: COLOR.GRAY80, lineHeight: 1.6, marginBottom: 8 }}>{n.message}</div>
+                    <div style={{ fontSize: 12, color: COLOR.GRAY60 }}>{n.time}</div>
+                    {n.type === 'fail' && (
+                      <div style={{ marginTop: 12 }}>
+                        <AppTextButton variant="SECONDARY" size="SMALL" prefixIcon={<AppIcon name="restore" size={14} />}>다시 추출하기</AppTextButton>
+                      </div>
+                    )}
+                    {n.type === 'share' && (
+                      <div style={{ marginTop: 12 }}>
+                        <AppTextButton variant="PRIMARY" size="SMALL">파일 확인하기</AppTextButton>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PageWrapper>
+        );
+
       default:
         return null;
     }
@@ -2659,138 +3374,198 @@ export default function DocsPage() {
   return (
     <PageContainer>
       <FixedHeader>
-        <HeaderRow>
-          <Logo onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }}>파일 관리 시스템</Logo>
-          <GlobalSearchSection>
-            <GlobalSearchRow>
-              <GlobalSearchInputWrapper>
-                <GlobalSearchIcon>
-                  <AppIcon name="search" size={16} fillColor="ICON_ASSISTIVE" />
-                </GlobalSearchIcon>
-                <GlobalSearchInput
-                  placeholder="회사, 폴더, 파일명으로 검색..."
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                />
-                <SearchResultDropdown $isOpen={isSearchFocused && hasSearchResults}>
-                  {globalSearchResults.companies.length > 0 && (
-                    <SearchResultGroup>
-                      <SearchResultGroupTitle>회사</SearchResultGroupTitle>
-                      {globalSearchResults.companies.map(company => (
-                        <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); }}>
-                          <SearchResultIcon $type="company">
-                            <AppIcon name="folder" size={16} fillColor="ICON_PRIMARY" />
-                          </SearchResultIcon>
-                          <SearchResultInfo>
-                            <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
-                            <SearchResultMeta>{company.consultant} · {company.productCount}개 제품</SearchResultMeta>
-                          </SearchResultInfo>
-                        </SearchResultItem>
-                      ))}
-                    </SearchResultGroup>
+        <Logo onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }}>
+          파일 관리 시스템
+        </Logo>
+        <GlobalSearchSection>
+          <GlobalSearchInputWrapper ref={searchWrapperRef}>
+            <GlobalSearchIcon>
+              <AppIcon name="search" size={18} fillColor="ICON_NEUTRAL" />
+            </GlobalSearchIcon>
+            <GlobalSearchInput
+              $isFocused={isSearchFocused}
+              placeholder="회사, 폴더, 파일명으로 검색..."
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+            />
+            <SearchResultDropdown $isOpen={isSearchFocused} onMouseDown={(e) => e.preventDefault()}>
+              <SearchFilterContainer>
+                <SearchFilterRow style={{ marginBottom: 10 }}>
+                  <SearchFilterLabel>분류</SearchFilterLabel>
+                  <SearchFilterSelect value={fileTagFilter} onChange={(e) => setFileTagFilter(e.target.value)}>
+                    <option value="all">태그 전체</option>
+                    {FILE_TAGS.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </SearchFilterSelect>
+                  <SearchFilterSelect value={fileTypeFilter} onChange={(e) => setFileTypeFilter(e.target.value)}>
+                    <option value="all">파일 타입</option>
+                    <option value="pdf">PDF</option>
+                    <option value="xlsx">Excel</option>
+                    <option value="jpg">이미지</option>
+                  </SearchFilterSelect>
+                  <SearchFilterSelect value={uploaderFilter} onChange={(e) => setUploaderFilter(e.target.value)}>
+                    <option value="all">업로더</option>
+                    <option value="김담당">김담당</option>
+                    <option value="이매니저">이매니저</option>
+                    <option value="박컨설턴트">박컨설턴트</option>
+                    <option value="김민준">김민준</option>
+                  </SearchFilterSelect>
+                  <SearchFilterSelect value={fileSizeFilter} onChange={(e) => setFileSizeFilter(e.target.value)}>
+                    <option value="all">파일 크기</option>
+                    <option value="small">1MB 이하</option>
+                    <option value="medium">1MB ~ 10MB</option>
+                    <option value="large">10MB 이상</option>
+                  </SearchFilterSelect>
+                </SearchFilterRow>
+                <SearchFilterRow>
+                  <SearchFilterLabel>기간</SearchFilterLabel>
+                  <SearchDateFilter>
+                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} placeholder="시작일" />
+                    <span>~</span>
+                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} placeholder="종료일" />
+                  </SearchDateFilter>
+                  {(fileTagFilter !== 'all' || fileTypeFilter !== 'all' || uploaderFilter !== 'all' || fileSizeFilter !== 'all' || dateFrom || dateTo) && (
+                    <>
+                      <SearchFilterDivider />
+                      <SearchFilterReset onClick={() => { setFileTagFilter('all'); setFileTypeFilter('all'); setUploaderFilter('all'); setFileSizeFilter('all'); setDateFrom(''); setDateTo(''); }}>
+                        필터 초기화
+                      </SearchFilterReset>
+                    </>
                   )}
-                  {globalSearchResults.folders.length > 0 && (
-                    <SearchResultGroup>
-                      <SearchResultGroupTitle>폴더</SearchResultGroupTitle>
-                      {globalSearchResults.folders.map(folder => (
-                        <SearchResultItem key={folder.id}>
-                          <SearchResultIcon $type="folder">
-                            <AppIcon name="folder" size={16} fillColor="ICON_NEUTRAL" />
-                          </SearchResultIcon>
-                          <SearchResultInfo>
-                            <SearchResultName>{highlightText(folder.name, globalSearch)}</SearchResultName>
-                            <SearchResultMeta>폴더</SearchResultMeta>
-                          </SearchResultInfo>
-                        </SearchResultItem>
-                      ))}
-                    </SearchResultGroup>
-                  )}
-                  {globalSearchResults.files.length > 0 && (
-                    <SearchResultGroup>
-                      <SearchResultGroupTitle>파일</SearchResultGroupTitle>
-                      {globalSearchResults.files.map(file => (
-                        <SearchResultItem key={file.id} onClick={() => { setPreviewFile(file); setIsPreviewOpen(true); setGlobalSearch(''); }}>
-                          <SearchResultIcon $type="file">
-                            <AppIcon name="file" size={16} fillColor="ICON_NEUTRAL" />
-                          </SearchResultIcon>
-                          <SearchResultInfo>
-                            <SearchResultName>{highlightText(file.name, globalSearch)}</SearchResultName>
-                            <SearchResultMeta>{file.uploader} · {file.date} · {file.size}</SearchResultMeta>
-                          </SearchResultInfo>
-                        </SearchResultItem>
-                      ))}
-                    </SearchResultGroup>
-                  )}
-                </SearchResultDropdown>
-              </GlobalSearchInputWrapper>
-            </GlobalSearchRow>
-          </GlobalSearchSection>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <AppTextButton
-              variant={isFilterOpen ? 'PRIMARY' : 'SECONDARY'}
-              size="SMALL"
-              prefixIcon={<AppIcon name="filter" size={14} />}
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-            >
-              필터
-            </AppTextButton>
-            <NotificationWrapper onClick={(e) => e.stopPropagation()}>
-              <NotificationBell onClick={() => setIsNotificationOpen(!isNotificationOpen)}>
-                <AppIcon name="bell" size={18} fillColor="ICON_NEUTRAL" />
-                {unreadCount > 0 && <NotificationBadge>{unreadCount}</NotificationBadge>}
-              </NotificationBell>
-              <NotificationPanel $isOpen={isNotificationOpen}>
-                <NotificationHeader>
-                  <AppTypography variant="BODY1_500" color="TEXT_STRONG">알림</AppTypography>
-                  <button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))} style={{ background: 'none', border: 'none', color: COLOR.PRIMARY60, fontSize: 13, cursor: 'pointer' }}>
-                    모두 읽음
-                  </button>
-                </NotificationHeader>
-                <NotificationList>
-                  {notifications.map(n => (
-                    <NotificationItem key={n.id} $isRead={n.isRead}>
-                      <NotificationIcon $type={n.type}>{getNotifIcon(n.type)}</NotificationIcon>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: n.isRead ? 400 : 500 }}>{n.title}</div>
-                        <div style={{ fontSize: 12, color: COLOR.GRAY70, marginTop: 2 }}>{n.message}</div>
-                        <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 4 }}>{n.time}</div>
-                      </div>
-                    </NotificationItem>
-                  ))}
-                </NotificationList>
-              </NotificationPanel>
-            </NotificationWrapper>
-          </div>
-        </HeaderRow>
-        {isFilterOpen && (
-          <FilterChipsRow style={{ marginTop: 12 }}>
-            <FilterChipGroup>
-              <FilterChipLabel>컨설턴트</FilterChipLabel>
-              <AppSelect placeholder="전체" width={120} value={consultantFilter} onChange={(v) => setConsultantFilter(String(v))} options={CONSULTANTS} />
-            </FilterChipGroup>
-            <FilterChipGroup>
-              <FilterChipLabel>파일 타입</FilterChipLabel>
-              <AppSelect placeholder="전체" width={120} value={fileTypeFilter} onChange={(v) => setFileTypeFilter(String(v))} options={FILE_TYPE_OPTIONS} />
-            </FilterChipGroup>
-            <FilterChipGroup>
-              <FilterChipLabel>업로더</FilterChipLabel>
-              <AppSelect placeholder="전체" width={120} value={uploaderFilter} onChange={(v) => setUploaderFilter(String(v))} options={UPLOADER_OPTIONS} />
-            </FilterChipGroup>
-            <FilterChipGroup>
-              <FilterChipLabel>기간</FilterChipLabel>
-              <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ width: 120 }} />
-              <span style={{ color: COLOR.GRAY50 }}>~</span>
-              <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ width: 120 }} />
-            </FilterChipGroup>
-            {(consultantFilter !== 'all' || fileTypeFilter !== 'all' || uploaderFilter !== 'all' || dateFrom || dateTo) && (
-              <AppTextButton variant="SECONDARY" size="SMALL" onClick={() => { setConsultantFilter('all'); setFileTypeFilter('all'); setUploaderFilter('all'); setDateFrom(''); setDateTo(''); }}>
-                초기화
-              </AppTextButton>
-            )}
-          </FilterChipsRow>
-        )}
+                </SearchFilterRow>
+              </SearchFilterContainer>
+              <SearchResultList>
+                {/* 검색어가 있을 때 결과 표시 */}
+                {globalSearch && hasSearchResults && (
+                  <>
+                    {globalSearchResults.companies.length > 0 && (
+                      <SearchResultSection>
+                        <SearchResultSectionTitle>
+                          회사 <SearchResultCount>{globalSearchResults.companies.length}건</SearchResultCount>
+                        </SearchResultSectionTitle>
+                        {globalSearchResults.companies.map(company => (
+                          <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); setIsSearchFocused(false); }}>
+                            <AppIcon name="folder" size={18} fillColor="ICON_PRIMARY" />
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
+                              <SearchResultMeta>{company.consultant} · {company.productCount}개 제품</SearchResultMeta>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultSection>
+                    )}
+                    {globalSearchResults.folders.length > 0 && (
+                      <SearchResultSection>
+                        <SearchResultSectionTitle>
+                          폴더 <SearchResultCount>{globalSearchResults.folders.length}건</SearchResultCount>
+                        </SearchResultSectionTitle>
+                        {globalSearchResults.folders.map(folder => (
+                          <SearchResultItem key={folder.id}>
+                            <AppIcon name="folder" size={18} fillColor="ICON_NEUTRAL" />
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(folder.name, globalSearch)}</SearchResultName>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultSection>
+                    )}
+                    {globalSearchResults.files.length > 0 && (
+                      <SearchResultSection>
+                        <SearchResultSectionTitle>
+                          파일 <SearchResultCount>{globalSearchResults.files.length}건</SearchResultCount>
+                        </SearchResultSectionTitle>
+                        {globalSearchResults.files.map(file => (
+                          <SearchResultItem key={file.id} onClick={() => { setGlobalSearch(''); togglePanel(file.id); setIsSearchFocused(false); }}>
+                            <AppIcon name={file.type === 'pdf' ? 'file' : file.type === 'folder' ? 'folder' : 'file'} size={18} fillColor="ICON_NEUTRAL" />
+                            <SearchResultInfo>
+                              <SearchResultName>{highlightText(file.name, globalSearch)}</SearchResultName>
+                              <SearchResultMeta>{file.uploader} · {file.date} · {file.size}</SearchResultMeta>
+                            </SearchResultInfo>
+                          </SearchResultItem>
+                        ))}
+                      </SearchResultSection>
+                    )}
+                  </>
+                )}
+                {/* 검색어가 있지만 결과가 없을 때 */}
+                {globalSearch && !hasSearchResults && (
+                  <SearchEmptyState>
+                    <AppIcon name="search" size={32} fillColor="ICON_DISABLED" />
+                    <div style={{ marginTop: 12, color: COLOR.GRAY60 }}>
+                      <strong>&quot;{globalSearch}&quot;</strong>에 대한 검색 결과가 없습니다
+                    </div>
+                  </SearchEmptyState>
+                )}
+                {/* 검색어가 없을 때 최근 검색어 */}
+                {!globalSearch && (
+                  <SearchResultSection>
+                    <SearchResultSectionTitle>최근 검색</SearchResultSectionTitle>
+                    <SearchResultItem><AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" /><span>포컴퍼니</span></SearchResultItem>
+                    <SearchResultItem><AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" /><span>임상</span></SearchResultItem>
+                    <SearchResultItem><AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" /><span>stability test</span></SearchResultItem>
+                    <SearchResultItem><AppIcon name="search" size={18} fillColor="ICON_ASSISTIVE" /><span>잡코스</span></SearchResultItem>
+                  </SearchResultSection>
+                )}
+              </SearchResultList>
+              {globalSearch && hasSearchResults && (
+                <SearchFooter>
+                  <div />
+                  <AllResultsButton>
+                    ↵ 모든 결과 ({globalSearchResults.companies.length + globalSearchResults.folders.length + globalSearchResults.files.length}건)
+                  </AllResultsButton>
+                </SearchFooter>
+              )}
+            </SearchResultDropdown>
+          </GlobalSearchInputWrapper>
+        </GlobalSearchSection>
+        <HeaderRight>
+          <NotificationWrapper onClick={(e) => e.stopPropagation()}>
+            <HeaderButton onClick={() => { setIsNotificationOpen(!isNotificationOpen); setSelectedNotification(null); }}>
+              <AppIcon name="bell" size={20} fillColor="ICON_NEUTRAL" />
+              {unreadCount > 0 && <NotificationBadge>{unreadCount}</NotificationBadge>}
+            </HeaderButton>
+            <NotificationPanel $isOpen={isNotificationOpen}>
+              <NotificationHeader>
+                <AppTypography variant="BODY1_500" color="TEXT_STRONG">알림</AppTypography>
+                <button onClick={() => setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))} style={{ background: 'none', border: 'none', color: COLOR.PRIMARY60, fontSize: 13, cursor: 'pointer' }}>
+                  모두 읽음
+                </button>
+              </NotificationHeader>
+              <NotificationList>
+                {notifications.slice(0, 4).map(n => (
+                  <NotificationItem key={n.id} $isRead={n.isRead} onClick={() => { setNotifications(prev => prev.map(notif => notif.id === n.id ? { ...notif, isRead: true } : notif)); }}>
+                    <NotificationIcon $type={n.type}>{getNotifIcon(n.type)}</NotificationIcon>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: n.isRead ? 400 : 500 }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: COLOR.GRAY70, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 260 }}>{n.message}</div>
+                      <div style={{ fontSize: 11, color: COLOR.GRAY60, marginTop: 4 }}>{n.time}</div>
+                    </div>
+                  </NotificationItem>
+                ))}
+              </NotificationList>
+              <NotificationFooter onClick={() => { setCurrentView('notifications'); setIsNotificationOpen(false); }}>
+                전체 알림 보기 <AppIcon name="chevronRight" size={14} fillColor="ICON_PRIMARY" />
+              </NotificationFooter>
+            </NotificationPanel>
+          </NotificationWrapper>
+          <SettingsWrapper onClick={(e) => e.stopPropagation()}>
+            <HeaderButton onClick={() => setIsSettingsOpen(!isSettingsOpen)}>
+              <AppIcon name="settings" size={20} fillColor="ICON_NEUTRAL" />
+            </HeaderButton>
+            <SettingsDropdown $isOpen={isSettingsOpen}>
+              <SettingsItem onClick={() => { setCurrentView('permissions'); setIsSettingsOpen(false); }}>
+                <AppIcon name="folder" size={18} fillColor="ICON_NEUTRAL" />
+                권한 관리
+              </SettingsItem>
+              <SettingsItem>
+                <AppIcon name="settings" size={18} fillColor="ICON_NEUTRAL" />
+                환경 설정
+              </SettingsItem>
+            </SettingsDropdown>
+          </SettingsWrapper>
+        </HeaderRight>
       </FixedHeader>
       {renderContent()}
 
@@ -2864,178 +3639,6 @@ export default function DocsPage() {
           <AppTextButton variant="PRIMARY" size="MEDIUM" onClick={() => setIsShareModalOpen(false)}>공유하기</AppTextButton>
         </ModalFooter>
       </AppModal>
-
-      {/* 파일 미리보기 */}
-      <PreviewOverlay $isOpen={isPreviewOpen}>
-        {previewFile && (
-          <PreviewContainer>
-            <PreviewHeader>
-              <PreviewFileName>
-                {getFileIcon(previewFile.type)}
-                {previewFile.name}
-              </PreviewFileName>
-              <PreviewHeaderActions>
-                <PreviewHeaderBtn>
-                  <AppIcon name="download" size={16} fillColor="TEXT_WHITE" />
-                  다운로드
-                </PreviewHeaderBtn>
-                <PreviewHeaderBtn onClick={() => { setIsPreviewOpen(false); setSelectedFiles([previewFile.id]); setIsShareModalOpen(true); }}>
-                  <AppIcon name="share" size={16} fillColor="TEXT_WHITE" />
-                  공유
-                </PreviewHeaderBtn>
-                <PreviewPageInfo>1 / 3 페이지</PreviewPageInfo>
-                <PreviewHeaderBtn onClick={() => { setIsPreviewOpen(false); setPreviewFile(null); }} style={{ marginLeft: 8 }}>
-                  <AppIcon name="close" size={16} fillColor="TEXT_WHITE" />
-                </PreviewHeaderBtn>
-              </PreviewHeaderActions>
-            </PreviewHeader>
-
-            <PreviewLayout>
-              <PreviewMain>
-                {/* 이미지 미리보기 */}
-                {(previewFile.type === 'jpg' || previewFile.type === 'png') && (
-                  <PreviewImage src="https://via.placeholder.com/800x600/f0f0f0/666?text=Product+Image+Preview" alt={previewFile.name} />
-                )}
-
-                {/* PDF/문서 스켈레톤 미리보기 */}
-                {(previewFile.type === 'pdf' || previewFile.type === 'xlsx') && (
-                  <PDFSkeleton>
-                    <SkeletonLine $width="50%" $height={16} $dark />
-                    <div style={{ height: 20 }} />
-                    <SkeletonLine $width="100%" />
-                    <SkeletonLine $width="70%" />
-                    <SkeletonLine $width="45%" />
-                    <div style={{ height: 16 }} />
-                    <SkeletonLine $width="100%" />
-                    <SkeletonLine $width="85%" />
-                    <SkeletonLine $width="60%" />
-                    <SkeletonLine $width="40%" />
-                    <div style={{ height: 16 }} />
-                    <SkeletonLine $width="100%" />
-                    <SkeletonLine $width="75%" />
-                    <SkeletonBlock>
-                      <SkeletonLine $width="60%" $dark />
-                      <SkeletonLine $width="80%" />
-                      <SkeletonLine $width="70%" />
-                      <SkeletonLine $width="50%" />
-                    </SkeletonBlock>
-                    <SkeletonLine $width="100%" />
-                    <SkeletonLine $width="90%" />
-                    <SkeletonLine $width="55%" />
-                  </PDFSkeleton>
-                )}
-              </PreviewMain>
-
-              <PreviewSidebar>
-                {/* 파일 정보 */}
-                <PreviewSidebarSection>
-                  <PreviewSidebarTitle>파일 정보</PreviewSidebarTitle>
-                  <PreviewInfoRow>
-                    <PreviewInfoLabel>파일명</PreviewInfoLabel>
-                    <PreviewInfoValue>{previewFile.name}</PreviewInfoValue>
-                  </PreviewInfoRow>
-                  <PreviewInfoRow>
-                    <PreviewInfoLabel>크기</PreviewInfoLabel>
-                    <PreviewInfoValue>{previewFile.size}</PreviewInfoValue>
-                  </PreviewInfoRow>
-                  <PreviewInfoRow>
-                    <PreviewInfoLabel>수정일</PreviewInfoLabel>
-                    <PreviewInfoValue>{previewFile.date}</PreviewInfoValue>
-                  </PreviewInfoRow>
-                  <PreviewInfoRow>
-                    <PreviewInfoLabel>업로더</PreviewInfoLabel>
-                    <PreviewInfoValue>{previewFile.uploader || '-'}</PreviewInfoValue>
-                  </PreviewInfoRow>
-                  <PreviewInfoRow>
-                    <PreviewInfoLabel>위치</PreviewInfoLabel>
-                    <PreviewInfoValue>{selectedCompany?.nameKo} › 25년 1차 › 제품B</PreviewInfoValue>
-                  </PreviewInfoRow>
-                </PreviewSidebarSection>
-
-                {/* Certicos 추출 결과 */}
-                {previewFile.extractStatus && previewFile.extractStatus !== 'none' && (
-                  <PreviewSidebarSection>
-                    <PreviewSidebarTitle>Certicos 추출 결과</PreviewSidebarTitle>
-                    <ExtractStatusBadge $status={previewFile.extractStatus === 'completed' ? 'completed' : 'failed'}>
-                      <AppIcon name={previewFile.extractStatus === 'completed' ? 'check' : 'warning'} size={14} fillColor={previewFile.extractStatus === 'completed' ? 'STATE_SUCCESS' : 'STATE_ERROR'} />
-                      {previewFile.extractStatus === 'completed' ? '추출 완료' : '추출 실패'}
-                    </ExtractStatusBadge>
-
-                    {previewFile.extractStatus === 'completed' && previewFile.extractData && (
-                      <>
-                        {/* 일반 추출 데이터 */}
-                        {previewFile.extractData.productName && !previewFile.name.includes('ALLERGEN') && (
-                          <>
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>제품명</PreviewInfoLabel>
-                              <PreviewInfoValue>{previewFile.extractData.productName}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>고객사</PreviewInfoLabel>
-                              <PreviewInfoValue>{previewFile.extractData.customer}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                            {previewFile.extractData.amount && (
-                              <PreviewInfoRow>
-                                <PreviewInfoLabel>견적 금액</PreviewInfoLabel>
-                                <PreviewInfoValue>{previewFile.extractData.amount}</PreviewInfoValue>
-                              </PreviewInfoRow>
-                            )}
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>견적 일자</PreviewInfoLabel>
-                              <PreviewInfoValue>{previewFile.extractData.date}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                          </>
-                        )}
-
-                        {/* 알러젠 추출 데이터 */}
-                        {previewFile.name.includes('ALLERGEN') && (
-                          <>
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>향료명</PreviewInfoLabel>
-                              <PreviewInfoValue>{ALLERGEN_EXTRACT_DATA.fragranceName}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>공급사</PreviewInfoLabel>
-                              <PreviewInfoValue>{ALLERGEN_EXTRACT_DATA.vendor}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                            <PreviewInfoRow>
-                              <PreviewInfoLabel>알러젠 타입</PreviewInfoLabel>
-                              <PreviewInfoValue>Type {ALLERGEN_EXTRACT_DATA.allergenType}</PreviewInfoValue>
-                            </PreviewInfoRow>
-                            <div style={{ marginTop: 16 }}>
-                              <PreviewInfoLabel style={{ marginBottom: 8 }}>알러젠 리스트 ({Object.keys(ALLERGEN_EXTRACT_DATA.allergenList).length}개)</PreviewInfoLabel>
-                              <AllergenTable>
-                                <AllergenHeader>
-                                  <span>성분명</span>
-                                  <span style={{ textAlign: 'right' }}>함량 (%)</span>
-                                </AllergenHeader>
-                                {Object.entries(ALLERGEN_EXTRACT_DATA.allergenList).map(([name, value]) => (
-                                  <AllergenRow key={name}>
-                                    <AllergenName>{name}</AllergenName>
-                                    <AllergenValue>{value}</AllergenValue>
-                                  </AllergenRow>
-                                ))}
-                              </AllergenTable>
-                            </div>
-                          </>
-                        )}
-                      </>
-                    )}
-
-                    {previewFile.extractStatus === 'failed' && (
-                      <div style={{ fontSize: 13, color: COLOR.GRAY70 }}>
-                        파일 형식이 지원되지 않거나 내용을 읽을 수 없습니다.
-                      </div>
-                    )}
-
-                    <CerticosButton>Certicos에서 확인 →</CerticosButton>
-                  </PreviewSidebarSection>
-                )}
-              </PreviewSidebar>
-            </PreviewLayout>
-          </PreviewContainer>
-        )}
-      </PreviewOverlay>
 
       {/* 파일 이동 모달 */}
       <AppModal

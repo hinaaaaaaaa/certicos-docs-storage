@@ -34,7 +34,9 @@ type IconName =
   | 'check'
   | 'bell'
   | 'warning'
-  | 'eye';
+  | 'eye'
+  | 'star'
+  | 'starFilled';
 
 const icons: Record<IconName, (color: string) => React.ReactNode> = {
   chevronDown: (color) => (
@@ -247,6 +249,26 @@ const icons: Record<IconName, (color: string) => React.ReactNode> = {
       />
       <circle cx="12" cy="12" r="3" stroke={color} strokeWidth="2" fill="none" />
     </>
+  ),
+  star: (color) => (
+    <path
+      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  ),
+  starFilled: (color) => (
+    <path
+      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill={color}
+    />
   ),
 };
 
