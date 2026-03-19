@@ -2908,8 +2908,8 @@ export default function DocsPage() {
             <FileLayout>
               <Sidebar>
                 <SidebarSection style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <AppTextButton variant="SECONDARY" size="MEDIUM" style={{ width: '100%', justifyContent: 'center' }} prefixIcon={<AppIcon name="folder" size={16} />}>폴더 만들기</AppTextButton>
-                  <AppTextButton variant="PRIMARY" size="MEDIUM" style={{ width: '100%', justifyContent: 'center' }} prefixIcon={<AppIcon name="upload" size={16} />} onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
+                  <AppTextButton variant="PRIMARY" size="MEDIUM" style={{ width: '100%', justifyContent: 'center' }} prefixIcon={<AppIcon name="upload" size={16} fillColor="TEXT_WHITE" />} onClick={() => setIsUploadModalOpen(true)}>업로드</AppTextButton>
+                  <AppTextButton variant="SECONDARY" size="MEDIUM" style={{ width: '100%', justifyContent: 'center' }} prefixIcon={<AppIcon name="plus" size={16} />}>폴더 추가</AppTextButton>
                 </SidebarSection>
                 <NavItem $active={activeNav === 'all'} onClick={() => setActiveNav('all')}><AppIcon name="folder" size={16} fillColor={activeNav === 'all' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 전체 파일</NavItem>
                 <NavItem $active={activeNav === 'shared'} onClick={() => setActiveNav('shared')}><AppIcon name="share" size={16} fillColor={activeNav === 'shared' ? 'ICON_PRIMARY' : 'ICON_NEUTRAL'} /> 공유 파일</NavItem>

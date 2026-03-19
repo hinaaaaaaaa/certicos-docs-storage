@@ -55,6 +55,10 @@ const variantStyles = {
     &:hover:not(:disabled) {
       border-color: ${COLOR.PRIMARY60};
       color: ${COLOR.PRIMARY60};
+
+      svg path, svg circle, svg rect, svg line {
+        stroke: ${COLOR.PRIMARY60};
+      }
     }
   `,
   TERTIARY: css`
