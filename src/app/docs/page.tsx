@@ -103,6 +103,13 @@ const MOCK_FILES: (FileData & { isEmpty?: boolean; isStarred?: boolean; isShared
 // 파일 태그 목록
 const FILE_TAGS = ['견적서', '의뢰서', '긴급', '승인완료', '검토중', '인허가', '해외', '알러젠', 'MSDS', '원료', '이미지', '제품사진'];
 
+// 담당자 목록
+const MANAGER_OPTIONS = {
+  consultants: ['김종화', '이상민', '박지영', '최유진', '정민수'],
+  documentManagers: ['어명수', '김서연', '이준호', '박민지', '한승우'],
+  qualityManagers: ['이품질', '김품질', '박검수', '최관리', '정품질'],
+};
+
 // 알러젠 추출 데이터
 const ALLERGEN_EXTRACT_DATA: AllergenData = {
   fragranceName: 'ORANGE OIL(GC)',
@@ -1784,6 +1791,25 @@ const ModalFooter = styled.div`
   margin-top: 20px;
 `;
 
+const StyledInput = styled.input`
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
+  border: 1px solid ${COLOR.GRAY30};
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &:focus {
+    border-color: ${COLOR.PRIMARY60};
+  }
+
+  &::placeholder {
+    color: ${COLOR.GRAY50};
+  }
+`;
+
 // ---- 업로드 모달 ----
 const UploadDropArea = styled.div<{ $isDragging?: boolean }>`
   border: 2px dashed ${({ $isDragging }) => $isDragging ? COLOR.PRIMARY60 : COLOR.GRAY30};
@@ -2556,6 +2582,35 @@ export default function DocsPage() {
     { id: 'm2', name: '이매니저', email: 'lee@company.com', permission: 'view' },
   ]);
 
+  // 담당자 수정
+  const [isManagerEditOpen, setIsManagerEditOpen] = useState(false);
+  const [editingManagers, setEditingManagers] = useState({
+    consultant: '',
+    documentManager: '',
+    qualityManager: '',
+  });
+
+  // 영구 삭제 확인
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'single' | 'all'; fileId?: string; fileName?: string } | null>(null);
+
+  const handleDeleteConfirm = () => {
+    if (deleteTarget?.type === 'all') {
+      // 전체 삭제 로직
+      console.log('전체 영구 삭제');
+    } else if (deleteTarget?.fileId) {
+      // 개별 삭제 로직
+      console.log('영구 삭제:', deleteTarget.fileId);
+    }
+    setIsDeleteConfirmOpen(false);
+    setDeleteTarget(null);
+  };
+
+  const openDeleteConfirm = (type: 'single' | 'all', fileId?: string, fileName?: string) => {
+    setDeleteTarget({ type, fileId, fileName });
+    setIsDeleteConfirmOpen(true);
+  };
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // 파일 크기 파싱 (MB 단위로 변환)
@@ -2819,10 +2874,10 @@ export default function DocsPage() {
     { key: 'deletedAt', title: '삭제일', width: '100px', render: (_: unknown, r: FileData) => <FileMeta>{r.deletedAt}</FileMeta> },
     { key: 'expiresAt', title: '만료일', width: '150px', render: (_: unknown, r: FileData) => <span style={{ fontSize: 12, color: COLOR.RED60 }}>{r.expiresAt}</span> },
     {
-      key: 'actions', title: '액션', width: '180px', render: () => (
+      key: 'actions', title: '액션', width: '180px', render: (_: unknown, r: FileData) => (
         <div style={{ display: 'flex', gap: 8 }}>
           <AppTextButton variant="SECONDARY" size="SMALL">복원</AppTextButton>
-          <AppTextButton variant="DANGER" size="SMALL">영구 삭제</AppTextButton>
+          <AppTextButton variant="DANGER" size="SMALL" onClick={() => openDeleteConfirm('single', r.id, r.name)}>영구 삭제</AppTextButton>
         </div>
       )
     },
@@ -2894,13 +2949,28 @@ export default function DocsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }} />
                   <PageTitle style={{ fontSize: 20 }}>{selectedCompany?.nameKo}</PageTitle>
-                  <span style={{ marginLeft: 16, fontSize: 13, color: COLOR.GRAY70 }}>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 13, color: COLOR.GRAY70 }}>
                     컨설턴트: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.consultant}</span>
                     <span style={{ margin: '0 8px', color: COLOR.GRAY40 }}>|</span>
                     서류 담당: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.documentManager}</span>
                     <span style={{ margin: '0 8px', color: COLOR.GRAY40 }}>|</span>
                     품질 담당: <span style={{ color: COLOR.GRAY90 }}>{selectedCompany?.qualityManager}</span>
                   </span>
+                  <AppIconButton
+                    icon="edit"
+                    size="SMALL"
+                    title="담당자 수정"
+                    onClick={() => {
+                      setEditingManagers({
+                        consultant: selectedCompany?.consultant || '',
+                        documentManager: selectedCompany?.documentManager || '',
+                        qualityManager: selectedCompany?.qualityManager || '',
+                      });
+                      setIsManagerEditOpen(true);
+                    }}
+                  />
                 </div>
               </PageTitleRow>
             </PageHeader>
@@ -3227,7 +3297,7 @@ export default function DocsPage() {
                   <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setCurrentView(selectedCompany ? 'files' : 'companies')} />
                   <PageTitle style={{ fontSize: 20 }}>휴지통</PageTitle>
                 </div>
-                <AppTextButton variant="DANGER" size="MEDIUM">전체 영구 삭제</AppTextButton>
+                <AppTextButton variant="DANGER" size="MEDIUM" onClick={() => openDeleteConfirm('all')}>전체 영구 삭제</AppTextButton>
               </PageTitleRow>
             </PageHeader>
             <TrashNotice><AppIcon name="warning" size={16} fillColor="STATE_WARNING" /> 휴지통의 파일은 30일 후 자동으로 영구 삭제됩니다.</TrashNotice>
@@ -3794,6 +3864,108 @@ export default function DocsPage() {
             disabled={modalUploadFiles.length === 0 || modalUploadFiles.some(f => f.status === 'uploading')}
           >
             {modalUploadFiles.some(f => f.status === 'uploading') ? '업로드 중...' : '업로드'}
+          </AppTextButton>
+        </ModalFooter>
+      </AppModal>
+
+      {/* 담당자 수정 모달 */}
+      <AppModal
+        isOpen={isManagerEditOpen}
+        onClose={() => setIsManagerEditOpen(false)}
+        title="담당자 수정"
+        width={400}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: COLOR.GRAY80, marginBottom: 6 }}>컨설턴트</label>
+            <AppSelect
+              value={editingManagers.consultant}
+              onChange={(value) => setEditingManagers({ ...editingManagers, consultant: String(value) })}
+              options={MANAGER_OPTIONS.consultants.map(name => ({ value: name, label: name }))}
+              placeholder="컨설턴트 선택"
+              width="100%"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: COLOR.GRAY80, marginBottom: 6 }}>서류 담당</label>
+            <AppSelect
+              value={editingManagers.documentManager}
+              onChange={(value) => setEditingManagers({ ...editingManagers, documentManager: String(value) })}
+              options={MANAGER_OPTIONS.documentManagers.map(name => ({ value: name, label: name }))}
+              placeholder="서류 담당자 선택"
+              width="100%"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: COLOR.GRAY80, marginBottom: 6 }}>품질 담당</label>
+            <AppSelect
+              value={editingManagers.qualityManager}
+              onChange={(value) => setEditingManagers({ ...editingManagers, qualityManager: String(value) })}
+              options={MANAGER_OPTIONS.qualityManagers.map(name => ({ value: name, label: name }))}
+              placeholder="품질 담당자 선택"
+              width="100%"
+            />
+          </div>
+        </div>
+        <ModalFooter>
+          <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => setIsManagerEditOpen(false)}>
+            취소
+          </AppTextButton>
+          <AppTextButton
+            variant="PRIMARY"
+            size="MEDIUM"
+            onClick={() => {
+              if (selectedCompany) {
+                setSelectedCompany({
+                  ...selectedCompany,
+                  consultant: editingManagers.consultant,
+                  documentManager: editingManagers.documentManager,
+                  qualityManager: editingManagers.qualityManager,
+                });
+              }
+              setIsManagerEditOpen(false);
+            }}
+          >
+            저장
+          </AppTextButton>
+        </ModalFooter>
+      </AppModal>
+
+      {/* 영구 삭제 확인 다이얼로그 */}
+      <AppModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => { setIsDeleteConfirmOpen(false); setDeleteTarget(null); }}
+        title="영구 삭제 확인"
+        width={400}
+      >
+        <div style={{ textAlign: 'center', padding: '16px 0' }}>
+          <div style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: '#FEE2E2',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px'
+          }}>
+            <AppIcon name="trash" size={32} fillColor="STATE_ERROR" />
+          </div>
+          <AppTypography variant="BODY1_500" color="TEXT_STRONG" style={{ marginBottom: 8 }}>
+            {deleteTarget?.type === 'all'
+              ? '휴지통의 모든 파일을 영구 삭제하시겠습니까?'
+              : `"${deleteTarget?.fileName}"을(를) 영구 삭제하시겠습니까?`}
+          </AppTypography>
+          <AppTypography variant="BODY2_400" color="TEXT_ASSISTIVE">
+            삭제된 파일은 복구할 수 없습니다.
+          </AppTypography>
+        </div>
+        <ModalFooter style={{ justifyContent: 'center' }}>
+          <AppTextButton variant="SECONDARY" size="MEDIUM" onClick={() => { setIsDeleteConfirmOpen(false); setDeleteTarget(null); }}>
+            취소
+          </AppTextButton>
+          <AppTextButton variant="DANGER" size="MEDIUM" onClick={handleDeleteConfirm}>
+            영구 삭제
           </AppTextButton>
         </ModalFooter>
       </AppModal>
