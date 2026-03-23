@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist } from "next/font/google";
 import StyledComponentsRegistry from "@/lib/registry";
 import CSSInspector from "@/components/CSSInspector";
@@ -24,11 +25,13 @@ export default function RootLayout({
     <html lang="ko">
       <body className={geistSans.variable}>
         <StyledComponentsRegistry>
-          <DesignGuide>
-            <CSSInspector>
-              {children}
-            </CSSInspector>
-          </DesignGuide>
+          <Suspense fallback={null}>
+            <DesignGuide>
+              <CSSInspector>
+                {children}
+              </CSSInspector>
+            </DesignGuide>
+          </Suspense>
         </StyledComponentsRegistry>
       </body>
     </html>

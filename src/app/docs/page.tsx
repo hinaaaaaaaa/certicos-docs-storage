@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import styled from 'styled-components';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -2419,7 +2419,7 @@ const SmallBadge = styled.span`
 // ===== Component =====
 type ViewType = 'companies' | 'files' | 'trash' | 'permissions' | 'notifications';
 
-export default function DocsPage() {
+function DocsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -4023,5 +4023,13 @@ export default function DocsPage() {
         </ModalFooter>
       </AppModal>
     </PageContainer>
+  );
+}
+
+export default function DocsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40 }}>로딩 중...</div>}>
+      <DocsPageContent />
+    </Suspense>
   );
 }
