@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import styled from 'styled-components';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   COLOR,
   AppTypography,
@@ -2421,8 +2421,62 @@ type ViewType = 'companies' | 'files' | 'trash' | 'permissions' | 'notifications
 
 export default function DocsPage() {
   const router = useRouter();
-  const [currentView, setCurrentView] = useState<ViewType>('companies');
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const searchParams = useSearchParams();
+
+  // URL에서 초기 상태 읽기
+  const viewFromUrl = searchParams.get('view') as ViewType | null;
+  const companyIdFromUrl = searchParams.get('companyId');
+
+  const [currentView, setCurrentViewState] = useState<ViewType>(viewFromUrl || 'companies');
+  const [selectedCompany, setSelectedCompanyState] = useState<Company | null>(
+    companyIdFromUrl ? MOCK_COMPANIES.find(c => c.id === companyIdFromUrl) || null : null
+  );
+
+  // URL 업데이트 함수
+  const updateUrl = (view: ViewType, companyId?: string | null) => {
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (companyId) {
+      params.set('companyId', companyId);
+    }
+    router.push(`/docs?${params.toString()}`, { scroll: false });
+  };
+
+  // 뷰 변경 (URL도 함께 업데이트)
+  const setCurrentView = (view: ViewType) => {
+    setCurrentViewState(view);
+    updateUrl(view, selectedCompany?.id);
+  };
+
+  // 회사 선택 (URL도 함께 업데이트)
+  const setSelectedCompany = (company: Company | null) => {
+    setSelectedCompanyState(company);
+    if (company) {
+      updateUrl('files', company.id);
+      setCurrentViewState('files');
+    } else {
+      updateUrl('companies');
+      setCurrentViewState('companies');
+    }
+  };
+
+  // URL 변경 시 상태 동기화 (브라우저 뒤로가기/앞으로가기)
+  useEffect(() => {
+    const view = searchParams.get('view') as ViewType | null;
+    const companyId = searchParams.get('companyId');
+
+    if (view) {
+      setCurrentViewState(view);
+    }
+    if (companyId) {
+      const company = MOCK_COMPANIES.find(c => c.id === companyId);
+      if (company) {
+        setSelectedCompanyState(company);
+      }
+    } else {
+      setSelectedCompanyState(null);
+    }
+  }, [searchParams]);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [expandedPanels, setExpandedPanels] = useState<string[]>([]);
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
@@ -2785,7 +2839,6 @@ export default function DocsPage() {
 
   const handleCompanyClick = (company: Company) => {
     setSelectedCompany(company);
-    setCurrentView('files');
   };
 
   const toggleFileSelection = (fileId: string) => {
@@ -2947,7 +3000,7 @@ export default function DocsPage() {
             <PageHeader>
               <PageTitleRow>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }} />
+                  <AppIconButton icon="chevronLeft" size="SMALL" onClick={() => setSelectedCompany(null)} />
                   <PageTitle style={{ fontSize: 20 }}>{selectedCompany?.nameKo}</PageTitle>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -3444,7 +3497,7 @@ export default function DocsPage() {
   return (
     <PageContainer>
       <FixedHeader>
-        <Logo onClick={() => { setCurrentView('companies'); setSelectedCompany(null); }}>
+        <Logo onClick={() => setSelectedCompany(null)}>
           파일 관리 시스템
         </Logo>
         <GlobalSearchSection>
@@ -3516,7 +3569,7 @@ export default function DocsPage() {
                           회사 <SearchResultCount>{globalSearchResults.companies.length}건</SearchResultCount>
                         </SearchResultSectionTitle>
                         {globalSearchResults.companies.map(company => (
-                          <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setCurrentView('files'); setGlobalSearch(''); setIsSearchFocused(false); }}>
+                          <SearchResultItem key={company.id} onClick={() => { setSelectedCompany(company); setGlobalSearch(''); setIsSearchFocused(false); }}>
                             <AppIcon name="folder" size={18} fillColor="ICON_PRIMARY" />
                             <SearchResultInfo>
                               <SearchResultName>{highlightText(company.nameKo, globalSearch)}</SearchResultName>
